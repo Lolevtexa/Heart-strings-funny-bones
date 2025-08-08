@@ -97,7 +97,7 @@ const sf::Font Resource::defaultFont = []() {
 }();
 
 nlohmann::json Resource::userSettings =
-    Resource::loadJson("assets/settings.json");
+    Resource::loadJson("config/settings.json");
 nlohmann::json Resource::localization =
     Resource::loadJson(Resource::userSettings["localization"]);
 
