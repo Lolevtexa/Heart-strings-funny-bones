@@ -1,27 +1,38 @@
-// AText — активируемый текст: локализованный или произвольная строка (обертка
-// над CText).
-// ------------------------------------------------------------
-
-// Заголовочный файл. pragma once — защита от множественного включения.
+/**
+ * @file text.hpp
+ * @brief Активируемый текст: локализованный либо произвольная строка (обёртка
+ * над CText).
+ */
 #pragma once
 #include "../activatable.hpp"
 #include "../constantable/text.hpp"
 
-// Класс AText — см. описание в заголовке файла.
+/**
+ * @brief Текстовый виджет, меняющий цвет при наведении/фокусе.
+ */
 class AText : public Activatable, public CText {
 public:
-  // Конструктор: инициализация класса AText.
+  /**
+   * @brief Конструктор со строкой.
+   * @param string Текст (wstring).
+   */
   AText(const std::wstring &string) : CText(string) {
     appearance(Resource::unfocusedColor);
   }
-  // Конструктор: инициализация класса AText.
+
+  /**
+   * @brief Конструктор по ключам локализации.
+   * @param localizationKeys Путь по JSON (последовательность ключей).
+   */
   AText(const std::vector<std::string> &localizationKeys)
       : CText(localizationKeys), Activatable() {
     appearance(Resource::unfocusedColor);
   }
 
 protected:
-  // Применение темы/цветов к элементам.
+  /**
+   * @brief Применить цвет ко всем строкам отрисовываемого текста.
+   */
   void appearance(sf::Color color) {
     textColor = color;
     for (auto &line : drawableText) {

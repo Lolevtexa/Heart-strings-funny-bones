@@ -1,8 +1,10 @@
-// Сцена главного меню (MainScene): кнопки «Новая игра», «Загрузить»,
-// «Настройки», «Выход» и страницы настроек (громкость, режим экрана, язык).
-// ------------------------------------------------------------
-
-// Заголовочный файл. pragma once — защита от множественного включения.
+/**
+ * @file mainScene.hpp
+ * @brief Сцена главного меню: главные кнопки и страницы настроек (громкость,
+ * режим экрана, язык).
+ *
+ * Жизненный цикл: eventProcessing() → update() → draw().
+ */
 #pragma once
 #include "widgets/activatable/clickable/button.hpp"
 #include "widgets/activatable/clickable/radioButton.hpp"
@@ -12,10 +14,14 @@
 #include "widgets/activatable/text.hpp"
 #include "widgets/constantable/image.hpp"
 
-// Класс MainScene — см. описание в заголовке файла.
+/**
+ * @brief Главная сцена с меню и вкладками настроек.
+ */
 class MainScene : public sf::Drawable {
 private:
+  /// Доля ширины окна, занимаемая колонкой меню слева.
   const float menuButtonRatio = 1.f / 4.f;
+  /// Доля ширины окна, занимаемая колонкой настроек справа.
   const float settingsButtonRatio = 1.f / 3.f;
 
   int menuButtonWidth;
@@ -25,9 +31,11 @@ private:
 
   std::vector<Button *> menuButtons;
 
-  int settingsPage = 0;
+  int settingsPage =
+      0; ///< 0 — главная; 1 — Новая игра; 2 — Загрузка; 3 — Настройки.
   std::vector<std::vector<Button *>> settingsButtons{4};
 
+  // Для обновления надписей/значений при смене локализации/громкости.
   std::vector<AText *> textsByKey;
   std::vector<ANumber *> numbers;
   Slider *musicVolumeSliders;
@@ -36,9 +44,19 @@ private:
   Image background;
 
 public:
+  /**
+   * @brief Конструктор.
+   * @tparam Exit          колбэк «Выход» (закрыть окно)
+   * @tparam SetFullscreen колбэк «В полный экран»
+   * @tparam SetWindowed   колбэк «В окно»
+   * @tparam SetTitle      колбэк «Обновить заголовок окна»
+   * @param windowSize     исходный размер окна (для первичной компоновки)
+   *
+   * @note Здесь используется ключ `"music volme"` из userSettings (возможная
+   * опечатка в ключе — оставлена как есть).
+   */
   template <typename Exit, typename SetFullscreen, typename SetWindowed,
             typename SetTitle>
-  // Конструктор: инициализация класса MainScene.
   MainScene(Exit exit, SetFullscreen setFullscreen, SetWindowed setWindowed,
             SetTitle setTitle, sf::Vector2u windowSize)
       : menuButtonWidth(windowSize.x * menuButtonRatio),
@@ -48,9 +66,11 @@ public:
     backgroundMusic->setLoop(true);
     backgroundMusic->play();
 
+    // Растягиваем фон на весь экран
     background.setBound(0, 0, static_cast<float>(windowSize.x),
                         static_cast<float>(windowSize.y), 0);
 
+    // Главные кнопки
     addMainButton(std::vector<std::string>({"buttons", "new game"}),
                   [this]() { setSettingsPage(1); });
     addMainButton(std::vector<std::string>({"buttons", "load game"}),
@@ -60,15 +80,18 @@ public:
     addMainButton(std::vector<std::string>({"buttons", "exit"}), exit);
     updateMainButtonBounds();
 
+    // Страница 1 — Новая игра
     addSettingsTextButton(1,
                           std::vector<std::string>({"buttons", "start game"}),
                           []() { std::cout << "Start game" << std::endl; });
     addSettingsTextButton(1, std::vector<std::string>({"buttons", "back"}),
                           [this]() { setSettingsPage(0); });
 
+    // Страница 2 — Загрузка (пока только «Назад»)
     addSettingsTextButton(2, std::vector<std::string>({"buttons", "back"}),
                           [this]() { setSettingsPage(0); });
 
+    // Страница 3 — Настройки
     addSettingsSliderButton(
         3, std::vector<std::string>({"buttons", "music volume"}),
         musicVolumeSliders,
@@ -77,11 +100,13 @@ public:
               musicVolumeSliders->getValue();
         },
         Resource::userSettings["music volme"]);
+
     addSettingsRadioButton(
         3, std::vector<std::string>({"buttons", "screen mode"}),
         std::vector<std::vector<std::string>>(
             {{"buttons", "windowed"}, {"buttons", "fullscreen"}}),
         {setWindowed, setFullscreen}, getCurrentScreenMode());
+
     addSettingsRadioButton(3, std::vector<std::string>({"buttons", "language"}),
                            getLocalizationsNames(),
                            getLocalizationsFunc([this, setTitle]() {
@@ -89,10 +114,15 @@ public:
                              setTitle();
                            }),
                            getCurrentLocalizationIndex());
+
     addSettingsTextButton(3, std::vector<std::string>({"buttons", "back"}),
                           [this]() { setSettingsPage(0); });
   }
 
+  /**
+   * @brief Освобождает владение сырыми указателями на кнопки и останавливает
+   * музыку.
+   */
   ~MainScene() {
     while (menuButtons.size()) {
       delete *(menuButtons.rbegin());
@@ -109,7 +139,12 @@ public:
     backgroundMusic->stop();
   }
 
-  // Обработка ввода/событий SFML (мышь/клавиатура/окно).
+  /**
+   * @brief Обработка событий SFML (мышь/клавиатура/окно).
+   *
+   * @details Прокидывает события в кнопки активной страницы и в главное меню.
+   * На ресайз — обновляет фон и перерасчёт ширины колонок.
+   */
   void eventProcessing(sf::Event event) {
     for (auto &button : menuButtons) {
       button->eventProcessing(event);
@@ -127,7 +162,12 @@ public:
     }
   }
 
-  // Обновление состояния/логики перед отрисовкой.
+  /**
+   * @brief Логическое обновление перед отрисовкой.
+   *
+   * @details Обновляет все кнопки, пересчитывает компоновку, подтягивает
+   * громкость из слайдера.
+   */
   void update() {
     for (auto &button : menuButtons) {
       button->update();
@@ -142,7 +182,9 @@ public:
     backgroundMusic->setVolume(musicVolumeSliders->getValue());
   }
 
-  // Отрисовка объекта на целевой поверхности.
+  /**
+   * @brief Отрисовка сцены.
+   */
   void draw(sf::RenderTarget &target, sf::RenderStates states) const {
     target.draw(background, states);
 
@@ -156,10 +198,16 @@ public:
   }
 
 private:
+  /**
+   * @brief Переключить страницу настроек (повторный выбор — вернуться на 0).
+   */
   void setSettingsPage(int page) {
     settingsPage = settingsPage == page ? 0 : page;
   }
 
+  /**
+   * @brief Добавить кнопку в главное меню (текст по ключам локализации).
+   */
   void addMainButton(const std::vector<std::string> &localizationKeys,
                      std::function<void()> func) {
     AText *text = new AText(localizationKeys);
@@ -167,11 +215,18 @@ private:
     menuButtons.emplace_back(new Button(func, {text}));
   }
 
+  /**
+   * @brief Добавить кнопку в главное меню (готовая строка).
+   */
   void addMainButton(const std::wstring &text, std::function<void()> func) {
     AText *textButton = new AText(text);
     menuButtons.emplace_back(new Button(func, {textButton}));
   }
 
+  /**
+   * @brief Добавить текстовую кнопку на страницу настроек (по ключам
+   * локализации).
+   */
   void addSettingsTextButton(int page, const std::vector<std::string> &textKeys,
                              std::function<void()> func) {
     AText *text = new AText(textKeys);
@@ -179,12 +234,23 @@ private:
     settingsButtons[page].emplace_back(new Button(func, {text}));
   }
 
+  /**
+   * @brief Добавить текстовую кнопку на страницу настроек (по строке).
+   */
   void addSettingsTextButton(int page, const std::wstring &text,
                              std::function<void()> func) {
     AText *textButton = new AText(text);
     settingsButtons[page].emplace_back(new Button(func, {textButton}));
   }
 
+  /**
+   * @brief Добавить RadioButton с вариантами, заданными ключами локализации.
+   * @param page         Номер страницы настроек.
+   * @param textKeys     Подпись группы (ключи).
+   * @param textsKeys    Подписи вариантов (списки ключей).
+   * @param funcs        Действия для каждого варианта.
+   * @param buttonNumber Индекс выбранного варианта по умолчанию.
+   */
   void
   addSettingsRadioButton(int page, const std::vector<std::string> textKeys,
                          const std::vector<std::vector<std::string>> &textsKeys,
@@ -204,6 +270,10 @@ private:
         new RadioButton([]() {}, {text}, buttons, buttonNumber));
   }
 
+  /**
+   * @brief Перегрузка: добавить RadioButton с уже развёрнутыми строками
+   * вариантов.
+   */
   void addSettingsRadioButton(int page, const std::vector<std::string> textKeys,
                               const std::vector<std::wstring> &textsKeys,
                               const std::vector<std::function<void()>> &funcs,
@@ -222,6 +292,14 @@ private:
         new RadioButton([]() {}, {text}, buttons, buttonNumber));
   }
 
+  /**
+   * @brief Добавить слайдер-группу: [Текст | Число] + Slider.
+   * @param page         Страница настроек.
+   * @param textKeys     Подпись группы (ключи).
+   * @param slider       Выходной указатель — сюда сохранится созданный Slider.
+   * @param func         Действие при применении значения.
+   * @param defaultValue Стартовое значение слайдера.
+   */
   void addSettingsSliderButton(int page, std::vector<std::string> textKeys,
                                Slider *&slider, std::function<void()> func,
                                int defaultValue = 50) {
@@ -238,6 +316,9 @@ private:
         new Button(func, {new AHorizontalWigets({text, number}), slider}));
   }
 
+  /**
+   * @brief Перекомпоновка кнопок главного меню (вертикально).
+   */
   void updateMainButtonBounds() {
     int deltaY = 0;
     for (auto &button : menuButtons) {
@@ -247,6 +328,10 @@ private:
     }
   }
 
+  /**
+   * @brief Перекомпоновка кнопок на всех страницах настроек (вертикально в
+   * правой колонке).
+   */
   void updateSettingsButtonsBound() {
     for (auto &buttonsPage : settingsButtons) {
       int deltaY = 0;
@@ -259,6 +344,10 @@ private:
     }
   }
 
+  /**
+   * @brief Индекс текущего режима экрана: 0 — windowed, 1 — fullscreen, -1 —
+   * неизвестно.
+   */
   int getCurrentScreenMode() const {
     std::string current = Resource::userSettings["screen mode"];
     if (current == "windowed")
@@ -268,6 +357,11 @@ private:
     return -1;
   }
 
+  /**
+   * @brief Построить список действий, устанавливающих соответствующую
+   * локализацию.
+   * @param updateLocalization Колбэк, вызываемый после установки локализации.
+   */
   template <typename Func>
   std::vector<std::function<void()>>
   getLocalizationsFunc(Func updateLocalization) {
@@ -283,6 +377,9 @@ private:
     return loadLanguageFuncs;
   }
 
+  /**
+   * @brief Получить отображаемые названия доступных локализаций (из JSON).
+   */
   std::vector<std::wstring> getLocalizationsNames() {
     std::vector<std::wstring> localizationsNames;
     std::vector<std::string> listLocalizations = Resource::listLocalizations();
@@ -296,6 +393,9 @@ private:
     return localizationsNames;
   }
 
+  /**
+   * @brief Найти индекс текущей локализации в списке доступных.
+   */
   int getCurrentLocalizationIndex() const {
     std::vector<std::string> list = Resource::listLocalizations();
     std::string current = Resource::userSettings["localization"];
@@ -305,6 +405,9 @@ private:
     return 0;
   }
 
+  /**
+   * @brief Применить локализацию ко всем текстам и пересчитать компоновку.
+   */
   void updateLocalization() {
     for (auto &text : textsByKey) {
       text->resetString();

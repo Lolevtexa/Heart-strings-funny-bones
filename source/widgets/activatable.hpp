@@ -1,35 +1,42 @@
-// Activatable — базовый интерфейс для активируемых элементов (реагирующих на
-// курсор/клики). Управляет фокусом и цветом.
-// ------------------------------------------------------------
-
-// Заголовочный файл. pragma once — защита от множественного включения.
+/**
+ * @file activatable.hpp
+ * @brief Базовый интерфейс «активируемых» элементов: реагирует на курсор/клики,
+ * управляет фокусом/цветом.
+ */
 #pragma once
 #include "../resource.hpp"
 #include "constantable.hpp"
 #include <SFML/Window/Event.hpp>
 
-// Класс Activatable — см. описание в заголовке файла.
+/**
+ * @brief Базовый класс для элементов, меняющих внешний вид при
+ * наведении/взаимодействии.
+ *
+ * Контракт:
+ *  - eventProcessing(): обновляет focused по движениям мыши;
+ *  - update(): вызывает appearance() с нужным цветом в зависимости от focused.
+ */
 class Activatable : virtual public Constantable {
 protected:
+  /// Находится ли курсор в пределах body (обновляется в eventProcessing()).
   bool focused = false;
 
 public:
-  // Обработка ввода/событий SFML (мышь/клавиатура/окно).
+  /**
+   * @brief Обработка событий SFML для базового фокуса.
+   */
   virtual void eventProcessing(sf::Event event) {
     if (event.type == sf::Event::MouseMoved) {
-      if (body.contains(event.mouseMove.x, event.mouseMove.y)) {
-        focused = true;
-      } else {
-        focused = false;
-      }
+      focused = body.contains(event.mouseMove.x, event.mouseMove.y);
     }
-
     if (event.type == sf::Event::MouseLeft) {
       focused = false;
     }
   }
 
-  // Обновление состояния/логики перед отрисовкой.
+  /**
+   * @brief Обновление визуального состояния (цветов) на основе focused.
+   */
   virtual void update() {
     appearance(focused ? Resource::focusedColor : Resource::unfocusedColor);
   }
@@ -39,6 +46,9 @@ public:
   friend class AVerticalWigets;
 
 protected:
-  // Применение темы/цветов к элементам.
+  /**
+   * @brief Применить тему/цвета к элементу.
+   * @param color Цвет текста/обводки и т.п.
+   */
   virtual void appearance(sf::Color color) = 0;
 };

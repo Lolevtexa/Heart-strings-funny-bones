@@ -1,18 +1,22 @@
-// AOutline — активируемая рамка-обводка (обертка над COutline).
-// ------------------------------------------------------------
-
-// Заголовочный файл. pragma once — защита от множественного включения.
+/**
+ * @file outline.hpp
+ * @brief Активируемая рамка-обводка (обёртка над COutline).
+ */
 #pragma once
 #include "../activatable.hpp"
 #include "../constantable/outline.hpp"
 
-// Класс AOutline — см. описание в заголовке файла.
+/**
+ * @brief Обводка, реагирующая на фокус (меняет цвет контура).
+ */
 class AOutline : virtual public Activatable, public COutline {
 public:
-  // Конструктор: инициализация класса AOutline.
+  /// Конструктор по умолчанию.
   AOutline() : COutline() {}
 
 protected:
-  // Применение темы/цветов к элементам.
+  /**
+   * @brief Применить цвет к контуру.
+   */
   void appearance(sf::Color color) { outLine.setOutlineColor(color); }
 };

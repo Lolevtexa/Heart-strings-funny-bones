@@ -1,25 +1,37 @@
-// SubButtons — вспомогательный класс для управления набором внутренних кнопок и
-// выбранным индексом.
-// ------------------------------------------------------------
-
-// Заголовочный файл. pragma once — защита от множественного включения.
+/**
+ * @file subButtons.hpp
+ * @brief Набор внутренних кнопок и логика выбора текущего индекса.
+ *
+ * Используется RadioButton. Переназначает action у каждого варианта, чтобы
+ * обновлять выбранный индекс.
+ */
 #pragma once
 #include "button.hpp"
 
-// Класс SubButtons — см. описание в заголовке файла.
+/**
+ * @brief Блок управления под-кнопками (вариантами) и текущим выбором.
+ */
 class SubButtons : virtual public Clickable {
 protected:
-  bool selected = false;
-  bool unselect = true;
+  bool selected = false; ///< true — раскрыть список вариантов.
+  bool unselect =
+      true; ///< запрос вернуть варианты к unfocusedColor после закрытия.
 
-  int buttonNumber;
-  std::vector<Button *> subButtons;
+  int buttonNumber;                 ///< Индекс выбранного варианта.
+  std::vector<Button *> subButtons; ///< Варианты (владение — здесь).
 
 public:
-  // Конструктор: инициализация класса SubButtons.
+  /**
+   * @brief Конструктор.
+   * @param subButtons   Кнопки-варианты.
+   * @param buttonNumber Индекс выбранного по умолчанию.
+   *
+   * Переопределяет action каждой кнопки: при клике обновляет buttonNumber,
+   * затем вызывает исходный action.
+   */
   SubButtons(std::vector<Button *> subButtons, int buttonNumber = 0)
       : subButtons(subButtons), buttonNumber(buttonNumber) {
-    for (int i = 0; i < this->subButtons.size(); i++) {
+    for (int i = 0; i < static_cast<int>(this->subButtons.size()); i++) {
       std::function<void()> action = this->subButtons[i]->action;
       this->subButtons[i]->action = [this, i, action]() {
         this->buttonNumber = i;
@@ -30,13 +42,14 @@ public:
   }
 
   ~SubButtons() {
-    while (subButtons.size()) {
-      delete *(subButtons.rbegin());
+    while (!subButtons.empty()) {
+      delete subButtons.back();
       subButtons.pop_back();
     }
   }
 
-  // Обработка ввода/событий SFML (мышь/клавиатура/окно).
+  /// Прокидываем событие либо всем вариантам (если раскрыто), либо только
+  /// активному.
   void eventProcessing(sf::Event event) {
     if (selected) {
       for (auto &button : subButtons) {
@@ -45,11 +58,11 @@ public:
     } else {
       subButtons[buttonNumber]->Activatable::eventProcessing(event);
     }
-
     Clickable::eventProcessing(event);
   }
 
-  // Обновление состояния/логики перед отрисовкой.
+  /// Обновляем либо все варианты, либо только выбранный; сбрасываем цвета при
+  /// закрытии.
   void update() {
     if (selected) {
       for (auto &button : subButtons) {
@@ -67,13 +80,19 @@ public:
     }
 
     if (activate) {
-      selected = !selected;
-      unselect = selected == false;
+      selected = !selected;           // открыть/закрыть список
+      unselect = (selected == false); // при закрытии попросить сбросить цвета
       activate = false;
     }
   }
 
-  // Установка позиции/размера (границ) и раскладка дочерних элементов.
+  /**
+   * @brief Компоновка под-кнопок: вертикальный список при selected=true; иначе
+   * — только выбранная.
+   *
+   * Высота итоговой области — максимум из (накопленной высоты) и параметра
+   * height.
+   */
   void setBound(float x, float y, float width, float height, float indent) {
     float deltaY = 0;
     if (selected) {
@@ -90,7 +109,7 @@ public:
     Clickable::setBound(x, y, width, std::max(deltaY, height), indent);
   }
 
-  // Отрисовка объекта на целевой поверхности.
+  /// Рисуем либо все варианты, либо только выбранный.
   void draw(sf::RenderTarget &target, sf::RenderStates states) const {
     if (selected) {
       for (auto &button : subButtons) {
@@ -102,6 +121,7 @@ public:
   }
 
 protected:
-  // Применение темы/цветов к элементам.
-  void appearance(sf::Color color) {}
+  /// RadioButton перекрашивает шапку; варианты по умолчанию остаются без явной
+  /// перекраски здесь.
+  void appearance(sf::Color color) { (void)color; }
 };

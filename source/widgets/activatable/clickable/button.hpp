@@ -1,44 +1,53 @@
-// Button — составной виджет-кнопка с дочерними элементами (текст, слайдеры и
-// т.п.) и action().
-// ------------------------------------------------------------
-
-// Заголовочный файл. pragma once — защита от множественного включения.
+/**
+ * @file button.hpp
+ * @brief Составная кнопка: содержит произвольные дочерние элементы
+ * (текст/слайдеры) и действие action().
+ */
 #pragma once
 #include "../clickable.hpp"
 #include "../outline.hpp"
 
-// Класс Button — см. описание в заголовке файла.
+/**
+ * @brief Кнопка с набором дочерних элементов. Реагирует на клик (Clickable).
+ *
+ * Компоновка: setBound() раскладывает дочерние элементы вертикально с
+ * отступами, подбирает minWidth.
+ */
 class Button : virtual public Clickable, public AOutline {
 protected:
-  std::function<void()> action;
-
-  std::vector<Activatable *> elements;
+  std::function<void()> action; ///< Колбэк при активации.
+  std::vector<Activatable *>
+      elements; ///< Дочерние элементы (владение — здесь).
 
 public:
+  /**
+   * @brief Конструктор.
+   * @param action   Действие по клику.
+   * @param elements Дочерние элементы (все будут освобождены в деструкторе).
+   */
   template <typename Action>
-  // Конструктор: инициализация класса Button.
   Button(Action action, std::vector<Activatable *> elements)
       : action(action), elements(elements) {
     appearance(Resource::unfocusedColor);
   }
 
   ~Button() {
-    while (elements.size()) {
-      delete *elements.rbegin();
+    while (!elements.empty()) {
+      delete elements.back();
       elements.pop_back();
     }
   }
 
-  // Обработка ввода/событий SFML (мышь/клавиатура/окно).
+  /// Прокинуть событие всем дочерним элементам + своя логика клика.
   void eventProcessing(sf::Event event) {
     for (auto &element : elements) {
       element->eventProcessing(event);
     }
-
     Clickable::eventProcessing(event);
   }
 
-  // Обновление состояния/логики перед отрисовкой.
+  /// Обновить дочерние элементы; выполнить action() при activate=true; затем
+  /// общий апдейт Clickable.
   void update() {
     for (auto &element : elements) {
       element->update();
@@ -52,7 +61,12 @@ public:
     Clickable::update();
   }
 
-  // Установка позиции/размера (границ) и раскладка дочерних элементов.
+  /**
+   * @brief Вертикальная компоновка дочерних элементов с равными отступами.
+   *
+   * Дополнительно подбирается минимальная ширина (minWidth) по максимальной
+   * ширине из детей, и обновляется рамка AOutline.
+   */
   void setBound(float x, float y, float width, float height, float indent) {
     float deltaY = 0;
     float minWidth = width;
@@ -62,8 +76,10 @@ public:
       deltaY += element->getBound().height + indent;
       minWidth = std::max(minWidth, element->getBound().width);
     }
-    deltaY -= deltaY == 0 ? 0 : indent;
+    if (deltaY > 0)
+      deltaY -= indent; // убрать лишний нижний отступ
 
+    // Выровнять ширину всех детей по minWidth
     for (auto &element : elements) {
       element->setBound(element->getBound().left, element->getBound().top,
                         minWidth, element->getBound().height, indent);
@@ -72,12 +88,11 @@ public:
     AOutline::setBound(x, y, minWidth, std::max(deltaY, height), indent);
   }
 
-  // Отрисовка объекта на целевой поверхности.
+  /// Отрисовать всех детей, затем рамку.
   void draw(sf::RenderTarget &target, sf::RenderStates states) const {
     for (auto &element : elements) {
       target.draw(*element, states);
     }
-
     AOutline::draw(target, states);
   }
 
@@ -85,12 +100,11 @@ public:
   friend class SubButtons;
 
 protected:
-  // Применение темы/цветов к элементам.
+  /// Применить цветовую схему ко всем дочерним элементам и рамке.
   void appearance(sf::Color color) {
     for (auto &element : elements) {
       element->appearance(color);
     }
-
     AOutline::appearance(color);
   }
 };

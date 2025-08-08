@@ -1,24 +1,36 @@
-// RadioButton — кнопка с раскрывающимся набором под-кнопок (варианты),
-// управляет выбранным состоянием.
-// ------------------------------------------------------------
-
-// Заголовочный файл. pragma once — защита от множественного включения.
+/**
+ * @file radioButton.hpp
+ * @brief Радио-кнопка: надпись + раскрывающийся набор под-кнопок (варианты).
+ *
+ * selected=true — раскрыто все под-кнопки; selected=false — отображается только
+ * выбранная.
+ */
 #pragma once
 #include "button.hpp"
 #include "subButtons.hpp"
 
-// Класс RadioButton — см. описание в заголовке файла.
+/**
+ * @brief Радио-кнопка, сочетающая Button (шапка/надпись) и SubButtons
+ * (варианты).
+ */
 class RadioButton : public Button, public SubButtons {
 public:
+  /**
+   * @brief Конструктор.
+   * @param action        Действие при клике по «шапке» (переключает selected).
+   * @param elements      Визуальные элементы шапки (например, текст).
+   * @param subButtons    Список вариантов (по одному Button на вариант).
+   * @param buttonNumber  Индекс активного варианта по умолчанию.
+   */
   template <typename Action>
-  // Конструктор: инициализация класса RadioButton.
   RadioButton(Action action, std::vector<Activatable *> elements,
               std::vector<Button *> subButtons, int buttonNumber = 0)
       : Button(action, elements), SubButtons(subButtons, buttonNumber) {
     appearance(Resource::unfocusedColor);
   }
 
-  // Обработка ввода/событий SFML (мышь/клавиатура/окно).
+  /// События: сначала варианты (если раскрыто/или только активный), затем
+  /// элементы шапки, затем логика клика.
   void eventProcessing(sf::Event event) {
     if (selected) {
       for (auto &button : subButtons) {
@@ -35,7 +47,8 @@ public:
     Clickable::eventProcessing(event);
   }
 
-  // Обновление состояния/логики перед отрисовкой.
+  /// Обновление: варианты (все или выбранный), сброс «unselect» в
+  /// unfocusedColor, затем элементы шапки и клик.
   void update() {
     if (selected) {
       for (auto &button : subButtons) {
@@ -57,16 +70,20 @@ public:
     }
 
     if (activate) {
-      selected = !selected;
-      unselect = selected == false;
+      selected = !selected;           // разворачиваем/сворачиваем список
+      unselect = (selected == false); // при сворачивании сбросить цвета
       activate = false;
-      action();
+      action(); // пользовательский колбэк
     }
 
     Clickable::update();
   }
 
-  // Установка позиции/размера (границ) и раскладка дочерних элементов.
+  /**
+   * @brief Компоновка:
+   *  - элементы шапки вертикально,
+   *  - затем либо все варианты (если раскрыто), либо только выбранный.
+   */
   void setBound(float x, float y, float width, float height, float indent) {
     float deltaY = 0;
 
@@ -74,7 +91,8 @@ public:
       element->setBound(x, y + deltaY, width, height, indent);
       deltaY += element->getBound().height + indent;
     }
-    deltaY -= deltaY == 0 ? 0 : indent;
+    if (deltaY > 0)
+      deltaY -= indent;
 
     if (selected) {
       for (auto &button : subButtons) {
@@ -90,13 +108,13 @@ public:
     AOutline::setBound(x, y, width, std::max(deltaY, height), indent);
   }
 
-  // Отрисовка объекта на целевой поверхности.
+  /// Рисуем варианты (через SubButtons) и шапку (через Button).
   void draw(sf::RenderTarget &target, sf::RenderStates states) const {
     SubButtons::draw(target, states);
     Button::draw(target, states);
   }
 
 private:
-  // Применение темы/цветов к элементам.
+  /// Окраска только шапки (варианты красит SubButtons).
   void appearance(sf::Color color) { Button::appearance(color); }
 };

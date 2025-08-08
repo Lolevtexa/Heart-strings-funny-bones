@@ -1,51 +1,67 @@
-// CNumber — отображение числа sf::Text с обновлением значения через колбэк.
-// ------------------------------------------------------------
-
-// Заголовочный файл. pragma once — защита от множественного включения.
+/**
+ * @file number.hpp
+ * @brief Отображение числа с автообновлением через колбэк.
+ */
 #pragma once
 #include "../../resource.hpp"
 #include "../constantable.hpp"
 #include <SFML/Graphics/Text.hpp>
 
-// Класс CNumber — см. описание в заголовке файла.
+/**
+ * @brief Числовой виджет: хранит колбэк для получения значения и отрисовывает
+ * sf::Text.
+ */
 class CNumber : virtual public Constantable {
 protected:
-  bool valueIsNumber = false;
+  bool valueIsNumber = false; ///< Зарезервировано (на будущее форматирование).
 
-  int value = -1;
-  std::function<int()> getValue;
+  int value = -1;                ///< Последнее отображённое значение.
+  std::function<int()> getValue; ///< Функтор получения актуального значения.
 
-  sf::Text drawableNumber;
+  sf::Text drawableNumber; ///< Текстовое представление числа.
 
 public:
-  template <typename Func>
-  // Конструктор: инициализация класса CNumber.
-  CNumber(Func &getValue) : getValue(getValue) {
+  /**
+   * @brief Конструктор.
+   * @tparam Func Функтор/лямбда, возвращающая int по запросу.
+   * @param getValue Ссылка на функтор.
+   */
+  template <typename Func> CNumber(Func &getValue) : getValue(getValue) {
     drawableNumber.setFont(Resource::defaultFont);
     drawableNumber.setFillColor(Resource::focusedColor);
     drawableNumber.setCharacterSize(Resource::characterSize);
     drawableNumber.setLineSpacing(Resource::lineSpacing);
   }
 
-  // Установка позиции/размера (границ) и раскладка дочерних элементов.
+  /**
+   * @brief Компоновка и обновление текста при изменении значения.
+   *
+   * Центрирует надпись по горизонтали в пределах [x, x+width].
+   */
   virtual void setBound(float x, float y, float width, float height,
                         float indent) {
+    // Обновить строку, если значение поменялось
     if (value != getValue()) {
       value = getValue();
       drawableNumber.setString(std::to_string(value));
       valueIsNumber = false;
     }
 
+    // Центрирование по ширине
     drawableNumber.setPosition(
         x + width / 2 - drawableNumber.getGlobalBounds().width / 2, y);
-    float deltaY = drawableNumber.getGlobalBounds().height +
-                   drawableNumber.getLineSpacing();
-    float minWidth = std::min(width, drawableNumber.getGlobalBounds().width);
+
+    const float deltaY = drawableNumber.getGlobalBounds().height +
+                         drawableNumber.getLineSpacing();
+    const float minWidth =
+        std::min(width, drawableNumber.getGlobalBounds().width);
 
     Bound::setBound(x, y, minWidth, std::max(deltaY, height), indent);
   }
 
-  // Отрисовка объекта на целевой поверхности.
+  /**
+   * @brief Отрисовать числовую строку.
+   */
   void draw(sf::RenderTarget &target, sf::RenderStates states) const {
     target.draw(drawableNumber, states);
   }

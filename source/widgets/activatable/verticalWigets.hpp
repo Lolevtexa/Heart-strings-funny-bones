@@ -1,24 +1,32 @@
-// AVerticalWigets — активируемая вертикальная группа виджетов (оборачивает
-// CVerticalWigets).
-// ------------------------------------------------------------
-
-// Заголовочный файл. pragma once — защита от множественного включения.
+/**
+ * @file verticalWigets.hpp
+ * @brief Активируемая вертикальная группа виджетов (обёртка над
+ * CVerticalWigets).
+ */
 #pragma once
 #include "../activatable.hpp"
 #include "../constantable/verticalWigets.hpp"
 
-// Класс AVerticalWigets — см. описание в заголовке файла.
+/**
+ * @brief Вертикальный контейнер активируемых элементов.
+ */
 class AVerticalWigets : virtual public Activatable,
                         public CVerticalWigets<Activatable> {
 public:
-  // Конструктор: инициализация класса AVerticalWigets.
+  /**
+   * @brief Конструктор.
+   * @param elements Дочерние активируемые элементы (неизменяемое владение
+   * здесь).
+   */
   AVerticalWigets(std::vector<Activatable *> elements)
       : CVerticalWigets(elements) {
     appearance(Resource::unfocusedColor);
   }
 
 protected:
-  // Применение темы/цветов к элементам.
+  /**
+   * @brief Применить цвет ко всем дочерним элементам.
+   */
   void appearance(sf::Color color) {
     for (auto &element : elements) {
       element->appearance(color);
