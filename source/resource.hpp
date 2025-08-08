@@ -113,7 +113,7 @@ const sf::Color Resource::transparentColor = []() {
 
 sf::Texture Resource::background = []() {
   sf::Texture texture;
-  if (!texture.loadFromFile("assets/images/background.png")) {
+  if (!texture.loadFromFile("assets/images/mainMenu/background.png")) {
     throw std::runtime_error("Cannot load texture");
   }
 
