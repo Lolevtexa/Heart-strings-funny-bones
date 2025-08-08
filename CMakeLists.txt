@@ -69,8 +69,20 @@ target_link_libraries(${PROJECT_NAME}
 # ``PRE_BUILD`` phase is used so that the copy occurs every time the target
 # is built (useful when assets change).
 add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+  COMMAND ${CMAKE_COMMAND} -E remove_directory
+          $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
   COMMAND ${CMAKE_COMMAND} -E copy_directory
           ${CMAKE_CURRENT_SOURCE_DIR}/assets
           $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
-  COMMENT "Copying assets directory to build output"
+  COMMENT "Cleaning and copying assets directory to build output"
+)
+
+# Copy the ``config`` directory into the build output directory.
+add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+  COMMAND ${CMAKE_COMMAND} -E remove_directory
+          $<TARGET_FILE_DIR:${PROJECT_NAME}>/config
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+          ${CMAKE_CURRENT_SOURCE_DIR}/config
+          $<TARGET_FILE_DIR:${PROJECT_NAME}>/config
+  COMMENT "Cleaning and copying config directory to build output"
 )
