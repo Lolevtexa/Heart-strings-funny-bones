@@ -1,84 +1,152 @@
 name: Build and Release
 
+permissions:
+  contents: write
+
 on:
   pull_request:
-    branches: [ main ]
     types: [opened, synchronize, reopened, closed]
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            triplet: linux
+          - os: windows-latest
+            triplet: windows
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Install dependencies
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # ---------- deps ----------
+      - name: Install deps (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake libsfml-dev
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build build --config Release --parallel
-      - name: Package artifacts
-        run: |
-          mkdir -p artifact_linux
-          cp build/* artifact_linux/ || true
-          [ -d resources ] && cp -R resources artifact_linux/
-      - uses: actions/upload-artifact@v3
-        with:
-          name: linux-build
-          path: artifact_linux
+          sudo apt-get install -y build-essential cmake libsfml-dev nlohmann-json3-dev zip patchelf
 
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install dependencies
+      - name: Install deps (Windows)
+        if: matrix.os == 'windows-latest'
         run: |
-          choco install mingw -y
-          choco install cmake -y
-          choco install sfml -y
-      - name: Configure
-        run: cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build build --config Release
-      - name: Package artifacts
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
+          choco install sfml --yes
+          choco install nlohmann-json --yes
+
+      # ---------- configure & build ----------
+      - name: Configure (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: cmake --build build --config Release -- -j$(nproc)
+
+      - name: Configure (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cmake --build build --config Release -- /m
+
+      # ---------- compute search dirs for fixup_bundle ----------
+      - name: Compute FIXUP_SEARCH_DIRS (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          mkdir artifact_windows
-          copy build\* artifact_windows\ || exit /b 0
-          if exist resources (xcopy resources artifact_windows\resources /E /H /I /Y)
-      - uses: actions/upload-artifact@v3
+          # Библиотеки из apt обычно лежат тут:
+          echo "FIXUP_SEARCH_DIRS=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+
+      - name: Compute FIXUP_SEARCH_DIRS (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $dirs = @()
+          $root = "$env:ProgramData\chocolatey\lib\sfml"
+          if (Test-Path $root) {
+            $bins = Get-ChildItem -Path $root -Recurse -Filter *.dll -ErrorAction SilentlyContinue | Select-Object -Expand DirectoryName -Unique
+            $dirs += $bins
+          }
+          # при необходимости сюда можно добавить пути других DLL
+          $joined = [string]::Join(";", $dirs)
+          "FIXUP_SEARCH_DIRS=$joined" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # ---------- install (stage) with fixup_bundle ----------
+      - name: Install (stage) (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cmake --install build --prefix "$PWD/dist/linux" -DFIXUP_SEARCH_DIRS="$FIXUP_SEARCH_DIRS"
+          ls -la dist/linux
+
+      - name: Install (stage) (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cmake --install build --prefix "$PWD\dist\windows" -DFIXUP_SEARCH_DIRS="$env:FIXUP_SEARCH_DIRS"
+          Get-ChildItem -Recurse dist\windows
+
+      # ---------- package ----------
+      - name: Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd dist/linux
+          test -x ./HeartStringsFunnyBones || (echo "No binary"; ls -la; exit 1)
+          zip -r ../release-linux.zip HeartStringsFunnyBones assets config
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd dist\windows
+          if (!(Test-Path .\HeartStringsFunnyBones.exe)) { Write-Host "No exe"; Get-ChildItem; exit 1 }
+          Compress-Archive -Path HeartStringsFunnyBones.exe, assets, config -DestinationPath ..\release-windows.zip -Force
+
+      - name: Upload artifact (zip)
+        uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: artifact_windows
+          name: release-${{ matrix.triplet }}
+          path: |
+            dist/release-${{ matrix.triplet }}.zip
+          if-no-files-found: error
 
   release:
-    needs: [build-linux, build-windows]
-    if: github.event.pull_request.merged == true
+    name: Create GitHub Release
+    needs: [build]
     runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'closed' &&
+       github.event.pull_request.merged == true)
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: linux-build
-          path: release/linux
-      - uses: actions/download-artifact@v3
-        with:
-          name: windows-build
-          path: release/windows
-      - name: Generate version
-        id: version
+          path: artifacts
+
+      - name: Show downloaded files
         run: |
-          VERSION="v$(date +%Y.%m.%d).${{ github.run_number }}"
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-      - uses: softprops/action-gh-release@v1
+          ls -R artifacts
+
+      - name: Set version
+        id: version
+        run: echo "VERSION=v$(date +'%Y.%m.%d').${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.VERSION }}
-          name: Release ${{ steps.version.outputs.VERSION }}
-          draft: false
-          prerelease: false
-      - uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: ${{ steps.version.outputs.VERSION }}
           files: |
-            release/linux/**
-            release/windows/**
+            artifacts/release-linux/release-linux.zip
+            artifacts/release-windows/release-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
