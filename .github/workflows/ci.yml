@@ -1,84 +1,145 @@
 name: Build and Release
 
+permissions:
+  contents: write
+
 on:
-  pull_request:
-    branches: [ main ]
-    types: [opened, synchronize, reopened, closed]
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            triplet: linux
+          - os: windows-latest
+            triplet: windows
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Install dependencies
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # ---------- deps ----------
+      - name: Install deps (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake libsfml-dev
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build build --config Release --parallel
-      - name: Package artifacts
-        run: |
-          mkdir -p artifact_linux
-          cp build/* artifact_linux/ || true
-          [ -d resources ] && cp -R resources artifact_linux/
-      - uses: actions/upload-artifact@v3
-        with:
-          name: linux-build
-          path: artifact_linux
+          sudo apt-get install -y build-essential cmake libsfml-dev nlohmann-json3-dev zip patchelf
 
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install dependencies
+      - name: Install vcpkg (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          choco install mingw -y
-          choco install cmake -y
-          choco install sfml -y
-      - name: Configure
-        run: cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-      - name: Build
-        run: cmake --build build --config Release
-      - name: Package artifacts
+          git clone https://github.com/microsoft/vcpkg.git $env:USERPROFILE\vcpkg
+          & $env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat
+
+      - name: Install libs via vcpkg (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          mkdir artifact_windows
-          copy build\* artifact_windows\ || exit /b 0
-          if exist resources (xcopy resources artifact_windows\resources /E /H /I /Y)
-      - uses: actions/upload-artifact@v3
+          $triplet = "x64-windows"
+          & $env:USERPROFILE\vcpkg\vcpkg.exe install sfml nlohmann-json --triplet $triplet
+          echo "VCPKG_TRIPLET=$triplet" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "VCPKG_ROOT=$env:USERPROFILE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "VCPKG_BIN=$env:USERPROFILE\vcpkg\installed\$triplet\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # ---------- configure & build ----------
+      - name: Configure (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: cmake --build build --config Release -- -j$(nproc)
+
+      - name: Configure (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cmake -S . -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET `
+            -DCMAKE_PREFIX_PATH="$env:VCPKG_ROOT/installed/$env:VCPKG_TRIPLET/share"
+
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cmake --build build --config Release -- /m
+
+      # ---------- compute search dirs for fixup_bundle ----------
+      - name: Compute FIXUP_SEARCH_DIRS (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: echo "FIXUP_SEARCH_DIRS=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+
+      - name: Compute FIXUP_SEARCH_DIRS (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: echo "FIXUP_SEARCH_DIRS=$env:VCPKG_BIN" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      # ---------- install (stage) ----------
+      - name: Install (stage) (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cmake --install build --prefix "$PWD/dist/linux"
+          ls -la dist/linux
+
+      - name: Install (stage) (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cmake --install build --prefix "$PWD\dist\windows"
+          Get-ChildItem -Recurse dist\windows
+
+      # ---------- package ----------
+      - name: Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd dist/linux
+          zip -r ../release-linux.zip HeartStringsFunnyBones assets config
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd dist\windows
+          Compress-Archive -Path HeartStringsFunnyBones.exe, assets, config -DestinationPath ..\release-windows.zip -Force
+
+      - name: Upload artifact (zip)
+        uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: artifact_windows
+          name: release-${{ matrix.triplet }}
+          path: dist/release-${{ matrix.triplet }}.zip
+          if-no-files-found: error
 
   release:
-    needs: [build-linux, build-windows]
-    if: github.event.pull_request.merged == true
+    name: Create GitHub Release
+    needs: [build]
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: linux-build
-          path: release/linux
-      - uses: actions/download-artifact@v3
+          path: artifacts
+
+      - name: Show downloaded files
+        run: ls -R artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: windows-build
-          path: release/windows
-      - name: Generate version
-        id: version
-        run: |
-          VERSION="v$(date +%Y.%m.%d).${{ github.run_number }}"
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-      - uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
-          name: Release ${{ steps.version.outputs.VERSION }}
-          draft: false
-          prerelease: false
-      - uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           files: |
-            release/linux/**
-            release/windows/**
+            artifacts/release-linux/release-linux.zip
+            artifacts/release-windows/release-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
