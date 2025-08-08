@@ -1,4 +1,5 @@
-// CText — отрисовка многострочного текста: перенос по словам под заданную ширину; поддержка локализации.
+// CText — отрисовка многострочного текста: перенос по словам под заданную
+// ширину; поддержка локализации.
 // ------------------------------------------------------------
 
 // Заголовочный файл. pragma once — защита от множественного включения.
@@ -11,8 +12,7 @@
 #define TEXT_BY_STRING 1
 
 // Класс CText — см. описание в заголовке файла.
-class CText : virtual public Constantable
-{
+class CText : virtual public Constantable {
 protected:
   int type;
 
@@ -25,23 +25,18 @@ protected:
 public:
   // Конструктор: инициализация класса CText.
   CText(const std::wstring &string)
-      : text(removeOverspaces(string + L" ")), type(TEXT_BY_STRING)
-  {
-  }
+      : text(removeOverspaces(string + L" ")), type(TEXT_BY_STRING) {}
 
   // Конструктор: инициализация класса CText.
   CText(const std::vector<std::string> &localizationKeys)
       : localizationKeys(localizationKeys), type(TEXT_BY_KEY),
-        text(removeOverspaces(unpackingLocalization(localizationKeys) + L" "))
-  {
+        text(removeOverspaces(unpackingLocalization(localizationKeys) + L" ")) {
   }
 
   // Установка позиции/размера (границ) и раскладка дочерних элементов.
   virtual void setBound(float x, float y, float width, float height,
-                        float indent)
-  {
-    if (body.width != width)
-    {
+                        float indent) {
+    if (body.width != width) {
       body.width = width;
       updateDrawableText();
     }
@@ -49,8 +44,7 @@ public:
     float deltaY = 0;
     float minWidth = 0;
 
-    for (auto &line : drawableText)
-    {
+    for (auto &line : drawableText) {
       line.setPosition(x + width / 2 - line.getGlobalBounds().width / 2,
                        y + deltaY);
       deltaY += line.getGlobalBounds().height + line.getLineSpacing();
@@ -60,10 +54,8 @@ public:
     Bound::setBound(x, y, minWidth, std::max(deltaY, height), indent);
   }
 
-  void resetString()
-  {
-    if (type != TEXT_BY_KEY)
-    {
+  void resetString() {
+    if (type != TEXT_BY_KEY) {
       return;
     }
 
@@ -72,29 +64,22 @@ public:
   }
 
   // Отрисовка объекта на целевой поверхности.
-  void draw(sf::RenderTarget &target, sf::RenderStates states) const
-  {
-    for (auto &line : drawableText)
-    {
+  void draw(sf::RenderTarget &target, sf::RenderStates states) const {
+    for (auto &line : drawableText) {
       target.draw(line, states);
     }
   }
 
 protected:
-  static std::wstring removeOverspaces(const std::wstring &string)
-  {
+  static std::wstring removeOverspaces(const std::wstring &string) {
     std::wstring stringWithoutSpaces;
     bool isWord = false;
 
-    for (auto &c : string)
-    {
-      if (c != L' ' && c != L'\n')
-      {
+    for (auto &c : string) {
+      if (c != L' ' && c != L'\n') {
         stringWithoutSpaces += c;
         isWord = true;
-      }
-      else if ((c == L' ' || c == L'\n') && isWord)
-      {
+      } else if ((c == L' ' || c == L'\n') && isWord) {
         stringWithoutSpaces += L' ';
         isWord = false;
       }
@@ -103,8 +88,7 @@ protected:
     return stringWithoutSpaces;
   }
 
-  static bool doStringPlaced(const std::wstring &string, const float &width)
-  {
+  static bool doStringPlaced(const std::wstring &string, const float &width) {
     sf::Text tmp;
     tmp.setFont(Resource::defaultFont);
     tmp.setCharacterSize(Resource::characterSize);
@@ -114,20 +98,17 @@ protected:
   }
 
   static std::wstring
-  unpackingLocalization(const std::vector<std::string> &localizationKeys)
-  {
+  unpackingLocalization(const std::vector<std::string> &localizationKeys) {
     nlohmann::json j = Resource::localization;
 
-    for (auto &key : localizationKeys)
-    {
+    for (auto &key : localizationKeys) {
       j = j[key];
     }
 
     return utf8_to_wstring(j);
   }
 
-  void drawableTextEmplaceBack(const std::wstring &string)
-  {
+  void drawableTextEmplaceBack(const std::wstring &string) {
     drawableText.emplace_back();
     drawableText.rbegin()->setFont(Resource::defaultFont);
     drawableText.rbegin()->setFillColor(textColor);
@@ -136,28 +117,20 @@ protected:
     drawableText.rbegin()->setString(string);
   }
 
-  void updateDrawableText()
-  {
+  void updateDrawableText() {
     std::wstring word, string;
     drawableText.clear();
 
-    for (auto &c : text)
-    {
-      if (c != L' ')
-      {
+    for (auto &c : text) {
+      if (c != L' ') {
         word += c;
       }
-      if (c == L' ')
-      {
-        if (doStringPlaced(string + L" " + word, body.width))
-        {
+      if (c == L' ') {
+        if (doStringPlaced(string + L" " + word, body.width)) {
           string += (string.size() ? L" " : L"") + word;
           word.clear();
-        }
-        else
-        {
-          if (!string.size())
-          {
+        } else {
+          if (!string.size()) {
             string = word;
             word.clear();
           }
@@ -169,8 +142,7 @@ protected:
         }
       }
     }
-    if (string.size())
-    {
+    if (string.size()) {
       drawableTextEmplaceBack(string);
     }
   }

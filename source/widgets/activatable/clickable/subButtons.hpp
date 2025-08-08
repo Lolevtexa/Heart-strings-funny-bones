@@ -1,4 +1,5 @@
-// SubButtons — вспомогательный класс для управления набором внутренних кнопок и выбранным индексом.
+// SubButtons — вспомогательный класс для управления набором внутренних кнопок и
+// выбранным индексом.
 // ------------------------------------------------------------
 
 // Заголовочный файл. pragma once — защита от множественного включения.
@@ -6,52 +7,42 @@
 #include "button.hpp"
 
 // Класс SubButtons — см. описание в заголовке файла.
-class SubButtons : virtual public Clickable
-{
+class SubButtons : virtual public Clickable {
 protected:
   bool selected = false;
   bool unselect = true;
 
-  int buttonNumber = 0;
+  int buttonNumber;
   std::vector<Button *> subButtons;
 
 public:
   // Конструктор: инициализация класса SubButtons.
-  SubButtons(std::vector<Button *> subButtons) : subButtons(subButtons)
-  {
-    for (int i = 0; i < this->subButtons.size(); i++)
-    {
+  SubButtons(std::vector<Button *> subButtons, int buttonNumber = 0)
+      : subButtons(subButtons), buttonNumber(buttonNumber) {
+    for (int i = 0; i < this->subButtons.size(); i++) {
       std::function<void()> action = this->subButtons[i]->action;
-      this->subButtons[i]->action = [this, i, action]()
-      {
-        buttonNumber = i;
+      this->subButtons[i]->action = [this, i, action]() {
+        this->buttonNumber = i;
         action();
       };
       this->subButtons[i]->appearance(Resource::unfocusedColor);
     }
   }
 
-  ~SubButtons()
-  {
-    while (subButtons.size())
-    {
+  ~SubButtons() {
+    while (subButtons.size()) {
       delete *(subButtons.rbegin());
       subButtons.pop_back();
     }
   }
 
   // Обработка ввода/событий SFML (мышь/клавиатура/окно).
-  void eventProcessing(sf::Event event)
-  {
-    if (selected)
-    {
-      for (auto &button : subButtons)
-      {
+  void eventProcessing(sf::Event event) {
+    if (selected) {
+      for (auto &button : subButtons) {
         button->eventProcessing(event);
       }
-    }
-    else
-    {
+    } else {
       subButtons[buttonNumber]->Activatable::eventProcessing(event);
     }
 
@@ -59,31 +50,23 @@ public:
   }
 
   // Обновление состояния/логики перед отрисовкой.
-  void update()
-  {
-    if (selected)
-    {
-      for (auto &button : subButtons)
-      {
+  void update() {
+    if (selected) {
+      for (auto &button : subButtons) {
         button->update();
       }
-    }
-    else
-    {
+    } else {
       subButtons[buttonNumber]->Activatable::update();
     }
 
-    if (unselect)
-    {
-      for (auto &button : subButtons)
-      {
+    if (unselect) {
+      for (auto &button : subButtons) {
         button->appearance(Resource::unfocusedColor);
       }
       unselect = false;
     }
 
-    if (activate)
-    {
+    if (activate) {
       selected = !selected;
       unselect = selected == false;
       activate = false;
@@ -91,20 +74,15 @@ public:
   }
 
   // Установка позиции/размера (границ) и раскладка дочерних элементов.
-  void setBound(float x, float y, float width, float height, float indent)
-  {
+  void setBound(float x, float y, float width, float height, float indent) {
     float deltaY = 0;
-    if (selected)
-    {
-      for (auto &button : subButtons)
-      {
+    if (selected) {
+      for (auto &button : subButtons) {
         button->setBound(x, y + deltaY, width, height, indent);
         deltaY += button->getBound().getSize().y + indent;
       }
       deltaY -= indent;
-    }
-    else
-    {
+    } else {
       subButtons[buttonNumber]->setBound(x, y, width, height, indent);
       deltaY += subButtons[buttonNumber]->getBound().getSize().y;
     }
@@ -113,17 +91,12 @@ public:
   }
 
   // Отрисовка объекта на целевой поверхности.
-  void draw(sf::RenderTarget &target, sf::RenderStates states) const
-  {
-    if (selected)
-    {
-      for (auto &button : subButtons)
-      {
+  void draw(sf::RenderTarget &target, sf::RenderStates states) const {
+    if (selected) {
+      for (auto &button : subButtons) {
         target.draw(*button, states);
       }
-    }
-    else
-    {
+    } else {
       target.draw(*subButtons[buttonNumber], states);
     }
   }

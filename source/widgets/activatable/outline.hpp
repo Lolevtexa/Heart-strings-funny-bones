@@ -7,8 +7,7 @@
 #include "../constantable/outline.hpp"
 
 // Класс AOutline — см. описание в заголовке файла.
-class AOutline : virtual public Activatable, public COutline
-{
+class AOutline : virtual public Activatable, public COutline {
 public:
   // Конструктор: инициализация класса AOutline.
   AOutline() : COutline() {}

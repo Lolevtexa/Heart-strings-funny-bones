@@ -1,4 +1,5 @@
-// Activatable — базовый интерфейс для активируемых элементов (реагирующих на курсор/клики). Управляет фокусом и цветом.
+// Activatable — базовый интерфейс для активируемых элементов (реагирующих на
+// курсор/клики). Управляет фокусом и цветом.
 // ------------------------------------------------------------
 
 // Заголовочный файл. pragma once — защита от множественного включения.
@@ -8,36 +9,28 @@
 #include <SFML/Window/Event.hpp>
 
 // Класс Activatable — см. описание в заголовке файла.
-class Activatable : virtual public Constantable
-{
+class Activatable : virtual public Constantable {
 protected:
   bool focused = false;
 
 public:
   // Обработка ввода/событий SFML (мышь/клавиатура/окно).
-  virtual void eventProcessing(sf::Event event)
-  {
-    if (event.type == sf::Event::MouseMoved)
-    {
-      if (body.contains(event.mouseMove.x, event.mouseMove.y))
-      {
+  virtual void eventProcessing(sf::Event event) {
+    if (event.type == sf::Event::MouseMoved) {
+      if (body.contains(event.mouseMove.x, event.mouseMove.y)) {
         focused = true;
-      }
-      else
-      {
+      } else {
         focused = false;
       }
     }
 
-    if (event.type == sf::Event::MouseLeft)
-    {
+    if (event.type == sf::Event::MouseLeft) {
       focused = false;
     }
   }
 
   // Обновление состояния/логики перед отрисовкой.
-  virtual void update()
-  {
+  virtual void update() {
     appearance(focused ? Resource::focusedColor : Resource::unfocusedColor);
   }
 

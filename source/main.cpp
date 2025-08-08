@@ -1,4 +1,5 @@
-// Точка входа приложения. Инициализирует окно SFML, сцену MainScene и цикл обработки событий/отрисовки. Также управляет полноэкранным/оконным режимом.
+// Точка входа приложения. Инициализирует окно SFML, сцену MainScene и цикл
+// обработки событий/отрисовки. Также управляет полноэкранным/оконным режимом.
 // ------------------------------------------------------------
 
 #include "mainScene.hpp"
@@ -7,15 +8,12 @@
 // #include <windows.h>
 // Вообще нужный комит
 
-void setTitle(sf::RenderWindow &window)
-{
+void setTitle(sf::RenderWindow &window) {
   window.setTitle(utf8_to_wstring(Resource::localization["window name"]));
 }
 
-void setFullscreen(sf::RenderWindow &window, bool &isFullscreen)
-{
-  if (!isFullscreen)
-  {
+void setFullscreen(sf::RenderWindow &window, bool &isFullscreen) {
+  if (!isFullscreen) {
     window.create(sf::VideoMode::getDesktopMode(), "", sf::Style::Fullscreen);
     setTitle(window);
     window.setVerticalSyncEnabled(true);
@@ -25,10 +23,8 @@ void setFullscreen(sf::RenderWindow &window, bool &isFullscreen)
   }
 }
 
-void setWindowed(sf::RenderWindow &window, bool &isFullscreen)
-{
-  if (isFullscreen)
-  {
+void setWindowed(sf::RenderWindow &window, bool &isFullscreen) {
+  if (isFullscreen) {
     window.create(sf::VideoMode(800, 600),
                   utf8_to_wstring(Resource::localization["window name"]),
                   sf::Style::Default);
@@ -40,48 +36,37 @@ void setWindowed(sf::RenderWindow &window, bool &isFullscreen)
   }
 }
 
-int main()
-{
+int main() {
   // ShowWindow(GetConsoleWindow(), SW_HIDE);
 
   bool isFullscreen = Resource::userSettings["screen mode"] != "fullscreen";
   sf::RenderWindow window;
-  if (!isFullscreen)
-  {
+  if (!isFullscreen) {
     setFullscreen(window, isFullscreen);
-  }
-  else
-  {
+  } else {
     setWindowed(window, isFullscreen);
   }
 
   MainScene mainScene(
-      [&window]()
-      { window.close(); },
-      [&window, &isFullscreen]()
-      { setFullscreen(window, isFullscreen); },
-      [&window, &isFullscreen]()
-      { setWindowed(window, isFullscreen); },
-      [&window]()
-      { setTitle(window); }, window.getSize());
+      [&window]() { window.close(); },
+      [&window, &isFullscreen]() { setFullscreen(window, isFullscreen); },
+      [&window, &isFullscreen]() { setWindowed(window, isFullscreen); },
+      [&window]() { setTitle(window); }, window.getSize());
 
-  while (window.isOpen())
-  {
+  while (window.isOpen()) {
     sf::Event event;
 
-    while (window.pollEvent(event))
-    {
+    while (window.pollEvent(event)) {
       if (event.type == sf::Event::Closed)
         window.close();
 
-      if (event.type == sf::Event::Resized)
-      {
+      if (event.type == sf::Event::Resized) {
         sf::FloatRect visibleArea(0, 0, event.size.width, event.size.height);
         window.setView(sf::View(visibleArea));
       }
 
       mainScene.eventProcessing(event);
-      Resource::writeJson("assets/settings.json", Resource::userSettings);
+      Resource::writeJson("config/settings.json", Resource::userSettings);
     }
     mainScene.update();
 

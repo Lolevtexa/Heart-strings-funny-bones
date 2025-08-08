@@ -1,4 +1,5 @@
-// Constantable — базовый класс для неизменяемых самих по себе элементов (рисуемые + границы).
+// Constantable — базовый класс для неизменяемых самих по себе элементов
+// (рисуемые + границы).
 // ------------------------------------------------------------
 
 // Заголовочный файл. pragma once — защита от множественного включения.
@@ -8,6 +9,4 @@
 #include <SFML/Graphics/RenderTarget.hpp>
 
 // Класс Constantable — см. описание в заголовке файла.
-class Constantable : public Bound, public sf::Drawable
-{
-};
+class Constantable : public Bound, public sf::Drawable {};

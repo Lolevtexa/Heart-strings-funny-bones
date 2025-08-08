@@ -8,8 +8,7 @@
 #include <SFML/Graphics/Text.hpp>
 
 // Класс CNumber — см. описание в заголовке файла.
-class CNumber : virtual public Constantable
-{
+class CNumber : virtual public Constantable {
 protected:
   bool valueIsNumber = false;
 
@@ -21,8 +20,7 @@ protected:
 public:
   template <typename Func>
   // Конструктор: инициализация класса CNumber.
-  CNumber(Func &getValue) : getValue(getValue)
-  {
+  CNumber(Func &getValue) : getValue(getValue) {
     drawableNumber.setFont(Resource::defaultFont);
     drawableNumber.setFillColor(Resource::focusedColor);
     drawableNumber.setCharacterSize(Resource::characterSize);
@@ -31,10 +29,8 @@ public:
 
   // Установка позиции/размера (границ) и раскладка дочерних элементов.
   virtual void setBound(float x, float y, float width, float height,
-                        float indent)
-  {
-    if (value != getValue())
-    {
+                        float indent) {
+    if (value != getValue()) {
       value = getValue();
       drawableNumber.setString(std::to_string(value));
       valueIsNumber = false;
@@ -50,8 +46,7 @@ public:
   }
 
   // Отрисовка объекта на целевой поверхности.
-  void draw(sf::RenderTarget &target, sf::RenderStates states) const
-  {
+  void draw(sf::RenderTarget &target, sf::RenderStates states) const {
     target.draw(drawableNumber, states);
   }
 };

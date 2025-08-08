@@ -7,8 +7,7 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 
 // Класс Image — см. описание в заголовке файла.
-class Image : virtual public Constantable
-{
+class Image : virtual public Constantable {
 protected:
   sf::RectangleShape image;
 
@@ -18,8 +17,7 @@ public:
 
   // Установка позиции/размера (границ) и раскладка дочерних элементов.
   virtual void setBound(float x, float y, float width, float height,
-                        float indent)
-  {
+                        float indent) {
     image.setPosition(x, y);
     image.setSize(sf::Vector2f(width, height));
 
@@ -27,8 +25,7 @@ public:
   }
 
   // Отрисовка объекта на целевой поверхности.
-  void draw(sf::RenderTarget &target, sf::RenderStates states) const
-  {
+  void draw(sf::RenderTarget &target, sf::RenderStates states) const {
     target.draw(image, states);
   }
 };

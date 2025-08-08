@@ -6,8 +6,7 @@
 #include <SFML/Graphics/RectangleShape.hpp>
 
 // Класс Slider — см. описание в заголовке файла.
-class Slider : public Clickable
-{
+class Slider : public Clickable {
 protected:
   float minValue = 0;
   float maxValue = 100;
@@ -22,8 +21,7 @@ protected:
 
 public:
   // Конструктор: инициализация класса Slider.
-  Slider(int defaultValue = 50) : value(defaultValue)
-  {
+  Slider(int defaultValue = 50) : value(defaultValue) {
     slider.setOutlineThickness(3);
     sliderLineLeft.setOutlineThickness(3);
     sliderLineRight.setOutlineThickness(3);
@@ -32,10 +30,8 @@ public:
   }
 
   // Обработка ввода/событий SFML (мышь/клавиатура/окно).
-  void eventProcessing(sf::Event event)
-  {
-    if (event.type == sf::Event::MouseMoved)
-    {
+  void eventProcessing(sf::Event event) {
+    if (event.type == sf::Event::MouseMoved) {
       mouseMoved = true;
       mouseOffset = event.mouseMove.x;
     }
@@ -44,10 +40,8 @@ public:
   }
 
   // Обновление состояния/логики перед отрисовкой.
-  void update()
-  {
-    if (started && mouseMoved)
-    {
+  void update() {
+    if (started && mouseMoved) {
       float x = mouseOffset;
       float minX = sliderLineLeft.getPosition().x;
       float maxX = sliderLineRight.getPosition().x;
@@ -60,8 +54,7 @@ public:
   }
 
   // Установка позиции/размера (границ) и раскладка дочерних элементов.
-  void setBound(float x, float y, float width, float height, float indent)
-  {
+  void setBound(float x, float y, float width, float height, float indent) {
     float radius = height / 2.f - indent;
     float scaleFactor = (value - minValue) / (maxValue - minValue);
     slider.setRadius(radius);
@@ -88,8 +81,7 @@ public:
   int getValue() { return value; }
 
   // Отрисовка объекта на целевой поверхности.
-  void draw(sf::RenderTarget &target, sf::RenderStates states) const
-  {
+  void draw(sf::RenderTarget &target, sf::RenderStates states) const {
     target.draw(sliderLineLeft, states);
     target.draw(sliderLineRight, states);
     target.draw(slider, states);
@@ -97,8 +89,7 @@ public:
 
 protected:
   // Применение темы/цветов к элементам.
-  void appearance(sf::Color color)
-  {
+  void appearance(sf::Color color) {
     slider.setOutlineColor(color);
     sliderLineLeft.setOutlineColor(color);
     sliderLineRight.setOutlineColor(Resource::unfocusedColor);

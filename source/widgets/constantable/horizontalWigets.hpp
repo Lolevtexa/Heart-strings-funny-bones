@@ -1,4 +1,5 @@
-// CHorizontalWigets — горизонтальный компоновщик: размещает элементы в ряд, центрируя по ширине.
+// CHorizontalWigets — горизонтальный компоновщик: размещает элементы в ряд,
+// центрируя по ширине.
 // ------------------------------------------------------------
 
 // Заголовочный файл. pragma once — защита от множественного включения.
@@ -6,8 +7,7 @@
 #include "../constantable.hpp"
 
 template <typename T = Constantable>
-class CHorizontalWigets : virtual public Constantable
-{
+class CHorizontalWigets : virtual public Constantable {
 protected:
   std::vector<T *> elements;
 
@@ -17,12 +17,10 @@ public:
 
   // Установка позиции/размера (границ) и раскладка дочерних элементов.
   virtual void setBound(float x, float y, float width, float height,
-                        float indent)
-  {
+                        float indent) {
     float sumWidth = 0;
     float maxHeight = 0;
-    for (auto &element : elements)
-    {
+    for (auto &element : elements) {
       element->setBound(x, y, width, height, indent);
       sumWidth += element->getBound().width + indent;
       maxHeight = std::max(maxHeight, element->getBound().height);
@@ -30,8 +28,7 @@ public:
     sumWidth -= sumWidth == 0 ? 0 : indent;
 
     float deltaWidth = 0;
-    for (auto &element : elements)
-    {
+    for (auto &element : elements) {
       element->setBound(x + deltaWidth + (width - sumWidth) / 2,
                         y + (maxHeight - height) / 2, element->getBound().width,
                         height, indent);
@@ -42,10 +39,8 @@ public:
   }
 
   // Отрисовка объекта на целевой поверхности.
-  void draw(sf::RenderTarget &target, sf::RenderStates states) const
-  {
-    for (auto &element : elements)
-    {
+  void draw(sf::RenderTarget &target, sf::RenderStates states) const {
+    for (auto &element : elements) {
       target.draw(*element, states);
     }
   }

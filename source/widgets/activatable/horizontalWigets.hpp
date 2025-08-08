@@ -1,4 +1,5 @@
-// AHorizontalWigets — активируемая горизонтальная группа виджетов (оборачивает CHorizontalWigets).
+// AHorizontalWigets — активируемая горизонтальная группа виджетов (оборачивает
+// CHorizontalWigets).
 // ------------------------------------------------------------
 
 // Заголовочный файл. pragma once — защита от множественного включения.
@@ -8,22 +9,18 @@
 
 // Класс AHorizontalWigets — см. описание в заголовке файла.
 class AHorizontalWigets : virtual public Activatable,
-                          public CHorizontalWigets<Activatable>
-{
+                          public CHorizontalWigets<Activatable> {
 public:
-// Конструктор: инициализация класса AHorizontalWigets.
+  // Конструктор: инициализация класса AHorizontalWigets.
   AHorizontalWigets(std::vector<Activatable *> elements)
-      : CHorizontalWigets(elements)
-  {
+      : CHorizontalWigets(elements) {
     appearance(Resource::unfocusedColor);
   }
 
 protected:
   // Применение темы/цветов к элементам.
-  void appearance(sf::Color color)
-  {
-    for (auto &element : elements)
-    {
+  void appearance(sf::Color color) {
+    for (auto &element : elements) {
       element->appearance(color);
     }
   }

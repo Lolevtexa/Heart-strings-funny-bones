@@ -1,4 +1,5 @@
-// CVerticalWigets — вертикальный компоновщик: размещает элементы столбцом с отступами.
+// CVerticalWigets — вертикальный компоновщик: размещает элементы столбцом с
+// отступами.
 // ------------------------------------------------------------
 
 // Заголовочный файл. pragma once — защита от множественного включения.
@@ -6,8 +7,7 @@
 #include "../constantable.hpp"
 
 template <typename T = Constantable>
-class CVerticalWigets : virtual public Constantable
-{
+class CVerticalWigets : virtual public Constantable {
 protected:
   std::vector<T *> elements;
 
@@ -17,12 +17,10 @@ public:
 
   // Установка позиции/размера (границ) и раскладка дочерних элементов.
   virtual void setBound(float x, float y, float width, float height,
-                        float indent)
-  {
+                        float indent) {
     float deltaY = 0;
     float maxWidth = 0;
-    for (auto &element : elements)
-    {
+    for (auto &element : elements) {
       element->setBound(x, y + deltaY, width, height, indent);
       deltaY += element->getBound().height + indent;
       maxWidth = std::max(maxWidth, element->getBound().width);
@@ -33,10 +31,8 @@ public:
   }
 
   // Отрисовка объекта на целевой поверхности.
-  void draw(sf::RenderTarget &target, sf::RenderStates states) const
-  {
-    for (auto &element : elements)
-    {
+  void draw(sf::RenderTarget &target, sf::RenderStates states) const {
+    for (auto &element : elements) {
       target.draw(*element, states);
     }
   }

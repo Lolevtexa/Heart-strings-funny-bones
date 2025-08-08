@@ -7,13 +7,11 @@
 #include "../constantable/number.hpp"
 
 // Класс ANumber — см. описание в заголовке файла.
-class ANumber : public Activatable, public CNumber
-{
+class ANumber : public Activatable, public CNumber {
 public:
   template <typename Func>
   // Конструктор: инициализация класса ANumber.
-  ANumber(Func &getValue) : CNumber(getValue)
-  {
+  ANumber(Func &getValue) : CNumber(getValue) {
     appearance(Resource::unfocusedColor);
   }
 
