@@ -10,11 +10,10 @@
 class ANumber : public Activatable, public CNumber
 {
 public:
-  // Конструктор класса.
   template <typename Func>
+  // Конструктор: инициализация класса ANumber.
   ANumber(Func &getValue) : CNumber(getValue)
   {
-    // Конструктор класса.
     appearance(Resource::unfocusedColor);
   }
 

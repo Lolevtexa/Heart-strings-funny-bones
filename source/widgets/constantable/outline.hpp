@@ -14,12 +14,10 @@ protected:
   sf::RectangleShape outLine;
 
 public:
-  // Конструктор класса.
+  // Конструктор: инициализация класса COutline.
   COutline()
   {
-    // Конструктор класса.
     outLine.setOutlineThickness(3);
-    // Конструктор класса.
     outLine.setFillColor(Resource::transparentColor);
   }
 
@@ -27,19 +25,15 @@ public:
   virtual void setBound(float x, float y, float width, float height,
                         float indent)
   {
-    // Конструктор класса.
     outLine.setPosition(x, y);
-    // Конструктор класса.
     outLine.setSize(sf::Vector2f(width, height));
 
-    // Конструктор класса.
     Bound::setBound(x, y, width, height, indent);
   }
 
   // Отрисовка объекта на целевой поверхности.
   void draw(sf::RenderTarget &target, sf::RenderStates states) const
   {
-    // Конструктор класса.
     target.draw(outLine, states);
   }
 };

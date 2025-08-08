@@ -17,10 +17,8 @@ public:
   // Обработка ввода/событий SFML (мышь/клавиатура/окно).
   virtual void eventProcessing(sf::Event event)
   {
-    // Конструктор класса.
     if (event.type == sf::Event::MouseMoved)
     {
-      // Конструктор класса.
       if (body.contains(event.mouseMove.x, event.mouseMove.y))
       {
         focused = true;
@@ -31,7 +29,6 @@ public:
       }
     }
 
-    // Конструктор класса.
     if (event.type == sf::Event::MouseLeft)
     {
       focused = false;
@@ -41,7 +38,6 @@ public:
   // Обновление состояния/логики перед отрисовкой.
   virtual void update()
   {
-    // Конструктор класса.
     appearance(focused ? Resource::focusedColor : Resource::unfocusedColor);
   }
 

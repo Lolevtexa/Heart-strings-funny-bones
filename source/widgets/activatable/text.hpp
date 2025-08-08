@@ -10,18 +10,15 @@
 class AText : public Activatable, public CText
 {
 public:
-  // Конструктор класса.
+  // Конструктор: инициализация класса AText.
   AText(const std::wstring &string) : CText(string)
   {
-    // Конструктор класса.
     appearance(Resource::unfocusedColor);
   }
-  // Конструктор класса.
+  // Конструктор: инициализация класса AText.
   AText(const std::vector<std::string> &localizationKeys)
-      // Конструктор класса.
       : CText(localizationKeys), Activatable()
   {
-    // Конструктор класса.
     appearance(Resource::unfocusedColor);
   }
 
@@ -30,10 +27,8 @@ protected:
   void appearance(sf::Color color)
   {
     textColor = color;
-    // Конструктор класса.
     for (auto &line : drawableText)
     {
-      // Конструктор класса.
       line.setFillColor(textColor);
     }
   }

@@ -22,6 +22,5 @@ public:
     body.left = x;
   }
 
-  // Конструктор класса.
   sf::FloatRect getBound() { return body; }
 };

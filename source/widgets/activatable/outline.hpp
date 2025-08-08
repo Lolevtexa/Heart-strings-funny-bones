@@ -10,7 +10,7 @@
 class AOutline : virtual public Activatable, public COutline
 {
 public:
-  // Конструктор класса.
+  // Конструктор: инициализация класса AOutline.
   AOutline() : COutline() {}
 
 protected:

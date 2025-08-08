@@ -12,7 +12,7 @@ protected:
   std::vector<T *> elements;
 
 public:
-  // Конструктор класса.
+  // Конструктор: инициализация класса CVerticalWigets.
   CVerticalWigets(std::vector<T *> elements) : elements(elements) {}
 
   // Установка позиции/размера (границ) и раскладка дочерних элементов.
@@ -21,29 +21,22 @@ public:
   {
     float deltaY = 0;
     float maxWidth = 0;
-    // Конструктор класса.
     for (auto &element : elements)
     {
-      // Конструктор класса.
       element->setBound(x, y + deltaY, width, height, indent);
-      // Конструктор класса.
       deltaY += element->getBound().height + indent;
-      // Конструктор класса.
       maxWidth = std::max(maxWidth, element->getBound().width);
     }
     deltaY -= deltaY == 0 ? 0 : indent;
 
-    // Конструктор класса.
     Bound::setBound(x, y, maxWidth, deltaY, indent);
   }
 
   // Отрисовка объекта на целевой поверхности.
   void draw(sf::RenderTarget &target, sf::RenderStates states) const
   {
-    // Конструктор класса.
     for (auto &element : elements)
     {
-      // Конструктор класса.
       target.draw(*element, states);
     }
   }
