@@ -81,27 +81,20 @@ install(DIRECTORY assets config
 # ВАЖНО: BundleUtilities подключаем ТОЛЬКО в install(CODE), не на configure!
 install(CODE [[
   message(STATUS "Running fixup_bundle for ${CMAKE_PROJECT_NAME}")
-
-  # Тут уже выполняется "на установке", поэтому можно подключить модуль:
   include(BundleUtilities)
-
-  # Путь к установленному исполняемому файлу
   set(app "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/HeartStringsFunnyBones${CMAKE_EXECUTABLE_SUFFIX}")
-  if(NOT EXISTS "${app}")
-    message(FATAL_ERROR "Executable not found at install path: ${app}")
-  endif()
 
-  # Пути, где искать зависимости (передаём из CI через -DFIXUP_SEARCH_DIRS=...).
-  set(_dirs "")
-  if(DEFINED FIXUP_SEARCH_DIRS)
+  # сначала ENV, если нет — тогда CMake cache
+  if(DEFINED ENV{FIXUP_SEARCH_DIRS})
+    set(_dirs "$ENV{FIXUP_SEARCH_DIRS}")
+  elseif(DEFINED FIXUP_SEARCH_DIRS)
     set(_dirs "${FIXUP_SEARCH_DIRS}")
-    message(STATUS "FIXUP_SEARCH_DIRS='${_dirs}'")
   else()
-    message(WARNING "FIXUP_SEARCH_DIRS is not defined; fixup_bundle may miss some libs")
+    set(_dirs "")
   endif()
+  message(STATUS "FIXUP_SEARCH_DIRS='${_dirs}'")
 
-  # Копируем зависимые dll/so рядом с бинарём и чиним rpath при необходимости.
   fixup_bundle("${app}" "" "${_dirs}")
-
   message(STATUS "fixup_bundle completed")
 ]])
+
