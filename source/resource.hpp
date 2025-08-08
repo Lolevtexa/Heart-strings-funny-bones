@@ -17,6 +17,15 @@ public:
   static const int characterSize = 24;
   static const int lineSpacing = characterSize / 2;
 
+  inline static const std::string PATH_SETTINGS = "config/settings.json";
+  inline static const std::string PATH_LOCALIZATIONS_DIR =
+      "assets/localizations";
+  inline static const std::string PATH_FONT = "assets/fonts/arial.ttf";
+  inline static const std::string PATH_MUSIC =
+      "assets/music/hound-dog-jazz.mp3";
+  inline static const std::string PATH_BACKGROUND =
+      "assets/images/mainMenu/background.png";
+
   static const sf::Font defaultFont;
 
   static nlohmann::json localization;
@@ -30,7 +39,7 @@ public:
 
   static sf::Music *loadBackgroundMusic() {
     sf::Music *music = new sf::Music();
-    if (!music->openFromFile("assets/music/hound-dog-jazz.mp3")) {
+    if (!music->openFromFile(PATH_MUSIC        )) {
       throw std::runtime_error("Cannot load music");
     }
 
@@ -38,23 +47,22 @@ public:
   }
 
   static std::vector<std::string> listLocalizations() {
-    std::string directoryPath = "assets/localizations";
     std::vector<std::string> jsonFiles;
 
     try {
-      if (!std::filesystem::exists(directoryPath) ||
-          !std::filesystem::is_directory(directoryPath)) {
+      if (!std::filesystem::exists(PATH_LOCALIZATIONS_DIR ) ||
+          !std::filesystem::is_directory(PATH_LOCALIZATIONS_DIR )) {
         std::cerr << "Directory does not exist or is not a directory."
                   << std::endl;
         return jsonFiles;
       }
 
       for (const auto &entry :
-           std::filesystem::directory_iterator(directoryPath)) {
+           std::filesystem::directory_iterator(PATH_LOCALIZATIONS_DIR )) {
         if (entry.is_regular_file()) {
           auto path = entry.path();
           if (path.extension() == ".json") {
-            jsonFiles.push_back(directoryPath + "/" + path.filename().string());
+            jsonFiles.push_back(PATH_LOCALIZATIONS_DIR  + "/" + path.filename().string());
           }
         }
       }
@@ -82,12 +90,12 @@ public:
     return j;
   }
 
-  static void writeJson(const std::string &filename, nlohmann::json j) {
+  static void updateJson() {
     try {
-      std::ofstream file(filename);
-      file << j;
+      std::ofstream file(PATH_SETTINGS);
+      file << userSettings;
     } catch (const std::exception &e) {
-      std::cerr << "Cannot write localization: " << filename << " " << e.what()
+      std::cerr << "Cannot write localization: " << PATH_SETTINGS << " " << e.what()
                 << std::endl;
     }
   }
@@ -95,7 +103,7 @@ public:
 
 const sf::Font Resource::defaultFont = []() {
   sf::Font font;
-  if (!font.loadFromFile("assets/fonts/arial.ttf")) {
+  if (!font.loadFromFile(PATH_FONT         )) {
     throw std::runtime_error("Cannot load font");
   }
 
@@ -103,7 +111,7 @@ const sf::Font Resource::defaultFont = []() {
 }();
 
 nlohmann::json Resource::userSettings =
-    Resource::loadJson("config/settings.json");
+    Resource::loadJson(PATH_SETTINGS);
 nlohmann::json Resource::localization =
     Resource::loadJson(Resource::userSettings["localization"]);
 
@@ -119,7 +127,7 @@ const sf::Color Resource::transparentColor = []() {
 
 sf::Texture Resource::background = []() {
   sf::Texture texture;
-  if (!texture.loadFromFile("assets/images/mainMenu/background.png")) {
+  if (!texture.loadFromFile(PATH_BACKGROUND)) {
     throw std::runtime_error("Cannot load texture");
   }
 

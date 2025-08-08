@@ -5,8 +5,6 @@
 #include "mainScene.hpp"
 #include <SFML/Graphics.hpp>
 #include <cstdlib>
-// #include <windows.h>
-// Вообще нужный комит
 
 void setTitle(sf::RenderWindow &window) {
   window.setTitle(utf8_to_wstring(Resource::localization["window name"]));
@@ -37,8 +35,6 @@ void setWindowed(sf::RenderWindow &window, bool &isFullscreen) {
 }
 
 int main() {
-  // ShowWindow(GetConsoleWindow(), SW_HIDE);
-
   bool isFullscreen = Resource::userSettings["screen mode"] != "fullscreen";
   sf::RenderWindow window;
   if (!isFullscreen) {
@@ -66,8 +62,8 @@ int main() {
       }
 
       mainScene.eventProcessing(event);
-      Resource::writeJson("config/settings.json", Resource::userSettings);
     }
+    Resource::updateJson();
     mainScene.update();
 
     window.clear(sf::Color::White);
