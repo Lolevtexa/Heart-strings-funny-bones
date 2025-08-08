@@ -1,8 +1,0 @@
-If:
-  PathMatch: 
-    - .*\.cpp
-    - .*\.h
-    - .*\.hpp
-CompileFlags:
-  Add: 
-    - --include-directory=/home/lolevtexa/proga/Projects/Game/include
