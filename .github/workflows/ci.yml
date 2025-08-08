@@ -33,12 +33,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake libsfml-dev nlohmann-json3-dev zip patchelf
 
-      - name: Install deps (Windows)
+      - name: Install vcpkg (Windows)
         if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
-          choco install sfml --yes
-          choco install nlohmann-json --yes
+          git clone https://github.com/microsoft/vcpkg.git $env:USERPROFILE\vcpkg
+          & $env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat
+
+      - name: Install libs via vcpkg (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $triplet = "x64-windows"
+          & $env:USERPROFILE\vcpkg\vcpkg.exe install sfml nlohmann-json --triplet $triplet
+          echo "VCPKG_TRIPLET=$triplet" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "VCPKG_ROOT=$env:USERPROFILE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "VCPKG_BIN=$env:USERPROFILE\vcpkg\installed\$triplet\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       # ---------- configure & build ----------
       - name: Configure (Linux)
@@ -51,7 +61,11 @@ jobs:
 
       - name: Configure (Windows)
         if: matrix.os == 'windows-latest'
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake
+          -DVCPKG_TARGET_TRIPLET=%VCPKG_TRIPLET%
 
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'
@@ -60,36 +74,31 @@ jobs:
       # ---------- compute search dirs for fixup_bundle ----------
       - name: Compute FIXUP_SEARCH_DIRS (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: |
-          # Библиотеки из apt обычно лежат тут:
-          echo "FIXUP_SEARCH_DIRS=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+        run: echo "FIXUP_SEARCH_DIRS=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
 
       - name: Compute FIXUP_SEARCH_DIRS (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          $dirs = @()
-          $root = "$env:ProgramData\chocolatey\lib\sfml"
-          if (Test-Path $root) {
-            $bins = Get-ChildItem -Path $root -Recurse -Filter *.dll -ErrorAction SilentlyContinue | Select-Object -Expand DirectoryName -Unique
-            $dirs += $bins
-          }
-          # при необходимости сюда можно добавить пути других DLL
-          $joined = [string]::Join(";", $dirs)
-          "FIXUP_SEARCH_DIRS=$joined" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # Берём dll из vcpkg bin
+          echo "FIXUP_SEARCH_DIRS=$env:VCPKG_BIN" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       # ---------- install (stage) with fixup_bundle ----------
       - name: Install (stage) (Linux)
         if: matrix.os == 'ubuntu-latest'
+        env:
+          FIXUP_SEARCH_DIRS: ${{ env.FIXUP_SEARCH_DIRS }}
         run: |
-          cmake --install build --prefix "$PWD/dist/linux" -DFIXUP_SEARCH_DIRS="$FIXUP_SEARCH_DIRS"
+          cmake --install build --prefix "$PWD/dist/linux"
           ls -la dist/linux
 
       - name: Install (stage) (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
+        env:
+          FIXUP_SEARCH_DIRS: ${{ env.FIXUP_SEARCH_DIRS }}
         run: |
-          cmake --install build --prefix "$PWD\dist\windows" -DFIXUP_SEARCH_DIRS="$env:FIXUP_SEARCH_DIRS"
+          cmake --install build --prefix "$PWD\dist\windows"
           Get-ChildItem -Recurse dist\windows
 
       # ---------- package ----------
@@ -133,8 +142,7 @@ jobs:
           path: artifacts
 
       - name: Show downloaded files
-        run: |
-          ls -R artifacts
+        run: ls -R artifacts
 
       - name: Set version
         id: version
