@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.21) # TARGET_RUNTIME_DLLS требует 3.21+
 
 project(HeartStringsFunnyBones VERSION 0.1 LANGUAGES CXX)
 
@@ -7,10 +7,19 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ---------------- Всегда бандлим зависимости из исходников ----------------
+# ---------------- Режим сборки зависимостей ----------------
+# Windows: хотим DLL, чтобы .exe запускался с рядом лежащими .dll
+# Linux: по умолчанию статик (меньше возни), но можно включить SHARED флагом при конфигурации.
+if (WIN32)
+  set(BUILD_SHARED_LIBS ON  CACHE BOOL "" FORCE)
+else()
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+endif()
+
+# ---------------- Тянем зависимости из исходников ----------------
 include(FetchContent)
 
-# nlohmann/json (header-only)
+# nlohmann/json — header-only, просто подключаем
 FetchContent_Declare(
   nlohmann_json
   GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -19,16 +28,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
-# SFML 3.0.1
-# (отключаем примеры/тесты/доки, чтобы ускорить сборку)
+# SFML 3.0.1 — отключаем всё лишнее
 set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_DOC      OFF CACHE BOOL "" FORCE)
-
-# По умолчанию используем статические библиотеки SFML.
-# Это самое беспроблемное поведение на Windows (меньше возни с DLL).
-# Если захочешь shared, просто выставь BUILD_SHARED_LIBS=ON при конфигурации.
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+# Чтобы при install не уезжали include и прочее от самой SFML
+set(SFML_INSTALL        OFF CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
   SFML
@@ -39,7 +44,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(SFML)
 
 # ---------------- Исходники проекта ----------------
-# Если предпочитаешь явный список файлов — замени этот блок на add_executable(...) с перечислением .cpp
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cxx
@@ -67,8 +71,7 @@ target_link_libraries(${PROJECT_NAME}
     nlohmann_json::nlohmann_json
 )
 
-# ---------------- Копирование ресурсов рядом с бинарём ----------------
-# При каждой сборке/запуске в VS Code ресурсы будут лежать рядом с исполняемым файлом.
+# ---------------- Ресурсы рядом с бинарём (для дебага/локального запуска) ----------------
 add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
   COMMAND ${CMAKE_COMMAND} -E remove_directory
           $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
@@ -87,32 +90,57 @@ add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
   COMMENT "Copy config -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/config"
 )
 
+# ---------------- Автокопирование DLL (Windows, после сборки) ----------------
+if (WIN32)
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "Copy runtime DLLs"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    COMMAND_EXPAND_LISTS
+  )
+endif()
+
+# ---------------- Настройка RPATH (если решишь делать SHARED на Linux) ----------------
+if (UNIX AND NOT APPLE)
+  # включи при -DBUILD_SHARED_LIBS=ON на Linux, чтобы .so искались в ./lib
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+  set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/lib")
+endif()
+
 # ---------------- Установка (install) ----------------
-# Делаем такую же структуру, как в логе CI: бинарь в корне префикса, рядом assets/ и config/.
 include(GNUInstallDirs)
 
 install(TARGETS ${PROJECT_NAME}
-  RUNTIME DESTINATION .            # .exe / ELF рядом в корне dist/<OS>
-  ARCHIVE DESTINATION lib          # если будет нужен статический архив проекта
-  LIBRARY DESTINATION lib          # на случай сборки как SHARED
+  RUNTIME DESTINATION .
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
 )
 
 install(DIRECTORY assets config
   DESTINATION .
 )
 
-# ВАЖНО:
-# 1) Мы убрали блок с fixup_bundle, т.к. он ломал установку на Windows.
-# 2) Для Windows используем статическую сборку SFML (BUILD_SHARED_LIBS=OFF),
-#    чтобы .exe не требовал рядом DLL от SFML — так проще публиковать артефакты.
-# 3) На Linux статические sfml-*.a всё равно подтянут системные so (X11/OpenGL и т.п.) в рантайме,
-#    поэтому в CI нужно ставить dev-пакеты (libx11-dev, libxi-dev, libgl1-mesa-dev, ...).
-#    Это у тебя уже добавлено/мы добавляли выше.
-#
-# Если захочешь именно SHARED на Linux (чтобы класть .so в dist/Linux/lib и запускать на «чистой» системе),
-# конфигурируй так:
-#   cmake -S . -B build -G Ninja -DBUILD_SHARED_LIBS=ON
-# и при необходимости добавь RPATH:
-#   set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
-#   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
-#   set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/lib")
+# Копировать DLL рядом с exe при install (Windows)
+if (WIN32)
+  install(CODE [[
+    # найдём все зависимости исполняемого файла
+    file(GET_RUNTIME_DEPENDENCIES
+         RESOLVED_DEPENDENCIES deps
+         EXECUTABLES "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/HeartStringsFunnyBones.exe")
+    foreach(dll IN LISTS deps)
+      get_filename_component(name "${dll}" NAME)
+      file(COPY "${dll}" DESTINATION "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}")
+    endforeach()
+  ]])
+endif()
+
+# ---------------- Подсказки по конфигурации ----------------
+message(STATUS "================= BUILD SUMMARY =================")
+message(STATUS "CMAKE_BUILD_TYPE      : ${CMAKE_BUILD_TYPE}")
+message(STATUS "BUILD_SHARED_LIBS     : ${BUILD_SHARED_LIBS}")
+message(STATUS "Generator             : ${CMAKE_GENERATOR}")
+message(STATUS "C++ Compiler          : ${CMAKE_CXX_COMPILER}")
+message(STATUS "Sources found         : ${PROJECT_SOURCES}")
+message(STATUS "==================================================")
