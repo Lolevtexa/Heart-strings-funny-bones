@@ -5,6 +5,8 @@
  */
 #pragma once
 #include "../activatable.hpp"
+#include <SFML/System/Vector2.hpp>
+#include <SFML/Window/Mouse.hpp>
 
 /**
  * @brief Добавляет логику клика (press/release) поверх Activatable.
@@ -30,26 +32,26 @@ public:
    * (оставляем focused=true).
    */
   virtual void eventProcessing(sf::Event event) {
-    if (event.type == sf::Event::MouseButtonPressed) {
-      if (event.mouseButton.button == sf::Mouse::Left) {
+    if (auto * m = event.getIf<sf::Event::MouseButtonPressed>()) {
+      if (m->button == sf::Mouse::Button::Left) {
         started = focused;
       }
     }
 
-    if (event.type == sf::Event::MouseButtonReleased) {
-      if (event.mouseButton.button == sf::Mouse::Left) {
+    if (auto * r = event.getIf<sf::Event::MouseButtonReleased>()) {
+      if (r->button == sf::Mouse::Button::Left) {
         activate =
-            body.contains(event.mouseButton.x, event.mouseButton.y) && started;
+            body.contains(sf::Vector2f(r->position.x, r->position.y)) && started;
         started = false;
       }
     }
 
     Activatable::eventProcessing(event);
 
-    if (event.type == sf::Event::MouseMoved) {
+    if (auto * m = event.getIf<sf::Event::MouseMoved>()) {
       // Если ушли за пределы с зажатой ЛКМ — считаем, что всё ещё
       // взаимодействуем с элементом.
-      if (!body.contains(event.mouseMove.x, event.mouseMove.y) && started) {
+      if (!body.contains(sf::Vector2f(m->position.x, m->position.y)) && started) {
         focused = true;
       }
     }

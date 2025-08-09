@@ -26,10 +26,8 @@ public:
    * @tparam Func Функтор/лямбда, возвращающая int по запросу.
    * @param getValue Ссылка на функтор.
    */
-  template <typename Func> CNumber(Func &getValue) : getValue(getValue) {
-    drawableNumber.setFont(Resource::defaultFont);
+  template <typename Func> CNumber(Func &getValue) : getValue(getValue), drawableNumber(Resource::defaultFont, L"", Resource::characterSize) {
     drawableNumber.setFillColor(Resource::focusedColor);
-    drawableNumber.setCharacterSize(Resource::characterSize);
     drawableNumber.setLineSpacing(Resource::lineSpacing);
   }
 
@@ -48,13 +46,14 @@ public:
     }
 
     // Центрирование по ширине
-    drawableNumber.setPosition(
-        x + width / 2 - drawableNumber.getGlobalBounds().width / 2, y);
+    drawableNumber.setPosition({
+        x + width / 2 - drawableNumber.getGlobalBounds().size.x / 2, y
+    });
 
-    const float deltaY = drawableNumber.getGlobalBounds().height +
+    const float deltaY = drawableNumber.getGlobalBounds().size.y +
                          drawableNumber.getLineSpacing();
     const float minWidth =
-        std::min(width, drawableNumber.getGlobalBounds().width);
+        std::min(width, drawableNumber.getGlobalBounds().size.x);
 
     Bound::setBound(x, y, minWidth, std::max(deltaY, height), indent);
   }

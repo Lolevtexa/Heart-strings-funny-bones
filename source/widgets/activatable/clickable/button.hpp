@@ -73,16 +73,16 @@ public:
 
     for (auto &element : elements) {
       element->setBound(x, y + deltaY, width, height, indent);
-      deltaY += element->getBound().height + indent;
-      minWidth = std::max(minWidth, element->getBound().width);
+      deltaY += element->getBound().size.y + indent;
+      minWidth = std::max(minWidth, element->getBound().size.x);
     }
     if (deltaY > 0)
       deltaY -= indent; // убрать лишний нижний отступ
 
     // Выровнять ширину всех детей по minWidth
     for (auto &element : elements) {
-      element->setBound(element->getBound().left, element->getBound().top,
-                        minWidth, element->getBound().height, indent);
+      element->setBound(element->getBound().position.x, element->getBound().position.y,
+                        minWidth, element->getBound().size.y, indent);
     }
 
     AOutline::setBound(x, y, minWidth, std::max(deltaY, height), indent);

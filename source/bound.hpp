@@ -32,10 +32,8 @@ public:
   virtual void setBound(float x, float y, float width, float height,
                         float indent) {
     (void)indent; // в базовой реализации не нужен
-    body.height = height;
-    body.width = width;
-    body.top = y;
-    body.left = x;
+    body.position = {x, y};
+    body.size = {width, height};
   }
 
   /**

@@ -6,6 +6,7 @@
 
 #include "mainScene.hpp"
 #include <SFML/Graphics.hpp>
+#include <SFML/Window.hpp>
 #include <cstdlib>
 
 /**
@@ -23,7 +24,7 @@ void setTitle(sf::RenderWindow &window) {
  */
 void setFullscreen(sf::RenderWindow &window, bool &isFullscreen) {
   if (!isFullscreen) {
-    window.create(sf::VideoMode::getDesktopMode(), "", sf::Style::Fullscreen);
+    window.create(sf::VideoMode::getDesktopMode(), "", sf::State::Fullscreen);
     setTitle(window);
     window.setVerticalSyncEnabled(true);
 
@@ -40,7 +41,7 @@ void setFullscreen(sf::RenderWindow &window, bool &isFullscreen) {
  */
 void setWindowed(sf::RenderWindow &window, bool &isFullscreen) {
   if (isFullscreen) {
-    window.create(sf::VideoMode(800, 600),
+    window.create(sf::VideoMode({800, 600}),
                   utf8_to_wstring(Resource::localization["window name"]),
                   sf::Style::Default);
     setTitle(window);
@@ -70,20 +71,17 @@ int main() {
 
   // Главный цикл
   while (window.isOpen()) {
-    sf::Event event;
-
     // Очередь событий
-    while (window.pollEvent(event)) {
-      if (event.type == sf::Event::Closed)
+    while (auto ev = window.pollEvent()) {
+      if (ev->is<sf::Event::Closed>()) {
         window.close();
-
-      // Обновление вида под новое окно
-      if (event.type == sf::Event::Resized) {
-        sf::FloatRect visibleArea(0, 0, event.size.width, event.size.height);
-        window.setView(sf::View(visibleArea));
+      } else if (const auto* r = ev->getIf<sf::Event::Resized>()) {
+        sf::FloatRect visible({0.f, 0.f}, {static_cast<float>(r->size.x),
+                                           static_cast<float>(r->size.y)});
+        window.setView(sf::View(visible));
       }
 
-      mainScene.eventProcessing(event);
+      mainScene.eventProcessing(*ev);
     }
 
     // Сохраняем настройки пользователя (например, громкость/язык)

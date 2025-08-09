@@ -12,6 +12,7 @@
 #include <SFML/Audio/Music.hpp>
 #include <SFML/Graphics/Font.hpp>
 #include <SFML/Graphics/Texture.hpp>
+#include <SFML/Graphics/Color.hpp>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -136,7 +137,7 @@ public:
 
 const sf::Font Resource::defaultFont = []() {
   sf::Font font;
-  if (!font.loadFromFile(PATH_FONT)) {
+  if (!font.openFromFile(PATH_FONT)) {
     throw std::runtime_error("Cannot load font");
   }
   return font;

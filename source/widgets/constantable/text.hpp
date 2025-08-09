@@ -55,8 +55,8 @@ public:
   virtual void setBound(float x, float y, float width, float height,
                         float indent) {
     // При изменении доступной ширины пересобираем переносы
-    if (body.width != width) {
-      body.width = width;
+    if (body.size.x != width) {
+      body.size.x = width;
       updateDrawableText();
     }
 
@@ -66,10 +66,10 @@ public:
     // Разложить строки вертикально и вычислить минимальную требуемую ширину
     // блока
     for (auto &line : drawableText) {
-      line.setPosition(x + width / 2 - line.getGlobalBounds().width / 2,
-                       y + deltaY);
-      deltaY += line.getGlobalBounds().height + line.getLineSpacing();
-      minWidth = std::max(minWidth, line.getGlobalBounds().width);
+      line.setPosition({x + width / 2 - line.getGlobalBounds().size.x / 2,
+                       y + deltaY});
+      deltaY += line.getGlobalBounds().size.y + line.getLineSpacing();
+      minWidth = std::max(minWidth, line.getGlobalBounds().size.x);
     }
 
     Bound::setBound(x, y, minWidth, std::max(deltaY, height), indent);
@@ -120,11 +120,8 @@ protected:
    * параметрами шрифта.
    */
   static bool doStringPlaced(const std::wstring &string, const float &width) {
-    sf::Text tmp;
-    tmp.setFont(Resource::defaultFont);
-    tmp.setCharacterSize(Resource::characterSize);
-    tmp.setString(string);
-    return tmp.getGlobalBounds().width <= width;
+    sf::Text txt{Resource::defaultFont, string, Resource::characterSize};
+    return txt.getGlobalBounds().size.x <= width;
   }
 
   /**
@@ -143,12 +140,10 @@ protected:
    * @brief Добавить строку в drawableText с нужными атрибутами шрифта/цвета.
    */
   void drawableTextEmplaceBack(const std::wstring &string) {
-    drawableText.emplace_back();
-    drawableText.rbegin()->setFont(Resource::defaultFont);
+    drawableText.emplace_back(sf::Text(Resource::defaultFont, string,
+                                        Resource::characterSize));
     drawableText.rbegin()->setFillColor(textColor);
-    drawableText.rbegin()->setCharacterSize(Resource::characterSize);
     drawableText.rbegin()->setLineSpacing(Resource::lineSpacing);
-    drawableText.rbegin()->setString(string);
   }
 
   /**
@@ -169,7 +164,7 @@ protected:
         word += c;
       }
       if (c == L' ') {
-        if (doStringPlaced(string + L" " + word, body.width)) {
+        if (doStringPlaced(string + L" " + word, body.size.x)) {
           string += (string.size() ? L" " : L"") + word;
           word.clear();
         } else {

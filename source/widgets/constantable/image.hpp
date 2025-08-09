@@ -25,8 +25,8 @@ public:
    */
   virtual void setBound(float x, float y, float width, float height,
                         float indent) {
-    image.setPosition(x, y);
-    image.setSize(sf::Vector2f(width, height));
+    image.setPosition({x, y});
+    image.setSize({width, height});
     Bound::setBound(x, y, width, height, indent);
   }
 

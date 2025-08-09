@@ -42,8 +42,8 @@ public:
     // 1-й проход: собрать фактические размеры детей
     for (auto &element : elements) {
       element->setBound(x, y, width, height, indent);
-      sumWidth += element->getBound().width + indent;
-      maxHeight = std::max(maxHeight, element->getBound().height);
+      sumWidth += element->getBound().size.x;
+      maxHeight = std::max(maxHeight, element->getBound().size.y);
     }
     if (sumWidth > 0)
       sumWidth -= indent; // убрать последний лишний отступ
@@ -52,9 +52,9 @@ public:
     float deltaWidth = 0;
     for (auto &element : elements) {
       element->setBound(x + deltaWidth + (width - sumWidth) / 2,
-                        y + (maxHeight - height) / 2, element->getBound().width,
+                        y + (maxHeight - height) / 2, element->getBound().size.x,
                         height, indent);
-      deltaWidth += element->getBound().width + indent;
+      deltaWidth += element->getBound().size.x + indent;
     }
 
     Bound::setBound(x, y, sumWidth, maxHeight, indent);

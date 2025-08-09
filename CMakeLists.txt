@@ -8,21 +8,19 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ===== nlohmann_json: через FetchContent по умолчанию =====
-option(USE_SYSTEM_JSON "Use system provided nlohmann_json if available" OFF)
-include(FetchContent)
-if(NOT USE_SYSTEM_JSON)
-  FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG v3.11.2
-  )
-  FetchContent_MakeAvailable(nlohmann_json)
-endif()
+# ===== nlohmann_json: только системная библиотека =====
+# На Linux ставится пакетом: sudo apt install nlohmann-json3-dev
+# На Windows/др. системах — будь то vcpkg/системный инсталлятор — пакет должен
+# предоставлять целевой таргет nlohmann_json::nlohmann_json.
+find_package(nlohmann_json CONFIG REQUIRED)
 
-# ===== SFML (динамические библиотеки) =====
-set(SFML_STATIC_LIBRARIES OFF CACHE BOOL "Build with SFML static libraries")
-find_package(SFML 2.5 COMPONENTS graphics audio window system REQUIRED)
+# ===== SFML 3.0.1 (динамические библиотеки) =====
+# Если SFML установлен в /usr/local (как в твоём WSL) — добавим этот префикс.
+# Не критично на системах, где SFML уже лежит в стандартных путях.
+list(APPEND CMAKE_PREFIX_PATH "/usr/local")
+
+# Важно: для SFML 3 используем CONFIG + компоненты с заглавной буквы.
+find_package(SFML 3.0.1 CONFIG REQUIRED COMPONENTS Graphics Audio Window System)
 
 # ===== Исполняемый файл =====
 add_executable(${PROJECT_NAME}
@@ -34,16 +32,17 @@ target_include_directories(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/source
 )
 
+# Линкуем таргеты SFML 3 и системный nlohmann_json
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
-    sfml-graphics
-    sfml-audio
-    sfml-window
-    sfml-system
+    SFML::Graphics
+    SFML::Audio
+    SFML::Window
+    SFML::System
     nlohmann_json::nlohmann_json
 )
 
-# ===== Копирование ресурсов в папку рядом с бинарём (во время сборки) =====
+# ===== Копирование ресурсов рядом с бинарём (на этапе сборки) =====
 add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
   COMMAND ${CMAKE_COMMAND} -E remove_directory
           $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
@@ -65,7 +64,7 @@ add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
 # ===== RPATH для Linux, чтобы .so искались рядом с бинарём =====
 set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
-# $ORIGIN — папка с бинарём; при желании можно класть библиотеки в ./lib и оставить обе записи
+# $ORIGIN — папка с бинарём; можно также использовать $ORIGIN/lib при желании.
 set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/lib")
 
 # ===== Установка (staging) в дистрибутивную папку =====
@@ -97,4 +96,3 @@ install(CODE [[
   fixup_bundle("${app}" "" "${_dirs}")
   message(STATUS "fixup_bundle completed")
 ]])
-

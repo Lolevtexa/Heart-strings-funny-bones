@@ -63,7 +63,7 @@ public:
         settingsButtonWidth(windowSize.x * settingsButtonRatio),
         background(&Resource::background) {
     backgroundMusic->setVolume(Resource::userSettings["music volme"]);
-    backgroundMusic->setLoop(true);
+    backgroundMusic->setLooping(true);
     backgroundMusic->play();
 
     // Растягиваем фон на весь экран
@@ -154,11 +154,11 @@ public:
       button->eventProcessing(event);
     }
 
-    if (event.type == sf::Event::Resized) {
-      background.setBound(0, 0, static_cast<float>(event.size.width),
-                          static_cast<float>(event.size.height), 0);
-      menuButtonWidth = event.size.width / 4;
-      settingsButtonWidth = event.size.width / 2;
+    if (auto* r = event.getIf<sf::Event::Resized>()) {
+      background.setBound(0, 0, static_cast<float>(r->size.x),
+                          static_cast<float>(r->size.y), 0);
+      menuButtonWidth = r->size.x / 4;
+      settingsButtonWidth = r->size.x / 2;
     }
   }
 
@@ -324,7 +324,7 @@ private:
     for (auto &button : menuButtons) {
       button->setBound(buttonIndent, buttonIndent + deltaY, menuButtonWidth,
                        buttonHeight, buttonIndent);
-      deltaY += button->getBound().getSize().y + buttonIndent;
+      deltaY += button->getBound().size.y + buttonIndent;
     }
   }
 
@@ -339,7 +339,7 @@ private:
         button->setBound(buttonIndent + menuButtonWidth + buttonIndent,
                          buttonIndent + deltaY, settingsButtonWidth,
                          buttonHeight, buttonIndent);
-        deltaY += button->getBound().getSize().y + buttonIndent;
+        deltaY += button->getBound().size.y + buttonIndent;
       }
     }
   }

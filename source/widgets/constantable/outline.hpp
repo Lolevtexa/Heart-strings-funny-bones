@@ -26,7 +26,7 @@ public:
    */
   virtual void setBound(float x, float y, float width, float height,
                         float indent) {
-    outLine.setPosition(x, y);
+    outLine.setPosition(sf::Vector2f(x, y));
     outLine.setSize(sf::Vector2f(width, height));
     Bound::setBound(x, y, width, height, indent);
   }

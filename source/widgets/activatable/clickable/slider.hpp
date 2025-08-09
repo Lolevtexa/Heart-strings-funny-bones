@@ -38,9 +38,9 @@ public:
   /// Фиксируем перемещение курсора — дорабатываем в update() (когда ЛКМ
   /// зажата).
   void eventProcessing(sf::Event event) {
-    if (event.type == sf::Event::MouseMoved) {
+    if (auto * m = event.getIf<sf::Event::MouseButtonPressed>()) {
       mouseMoved = true;
-      mouseOffset = event.mouseMove.x;
+      mouseOffset = m->position.x;
     }
     Clickable::eventProcessing(event);
   }
@@ -72,16 +72,16 @@ public:
     const float scaleFactor = (value - minValue) / (maxValue - minValue);
 
     slider.setRadius(radius);
-    slider.setOrigin(radius, radius);
-    slider.setPosition(x + indent + radius +
+    slider.setOrigin({radius, radius});
+    slider.setPosition({x + indent + radius +
                            (width - 2 * indent - 2 * radius) * scaleFactor,
-                       y + height / 2.f);
+                       y + height / 2.f});
 
     // Левая «линия-отрезок»: от левого края до ползунка
     sliderLineLeft.setSize(sf::Vector2f(
         std::max((width - 2 * indent - 2 * radius) * scaleFactor - radius, 0.f),
         0));
-    sliderLineLeft.setPosition(x + indent + radius, y + height / 2.f);
+    sliderLineLeft.setPosition({x + indent + radius, y + height / 2.f});
 
     // Правая «линия-отрезок»: от правого края до ползунка (отрицательная ширина
     // интерпретируется как 0)
@@ -90,7 +90,7 @@ public:
                      radius,
                  0.f),
         0));
-    sliderLineRight.setPosition(x + width - indent - radius, y + height / 2.f);
+    sliderLineRight.setPosition({x + width - indent - radius, y + height / 2.f});
 
     Clickable::setBound(x, y, width, height, indent);
   }

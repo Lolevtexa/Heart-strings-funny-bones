@@ -6,6 +6,7 @@
 #pragma once
 #include "../resource.hpp"
 #include "constantable.hpp"
+#include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
 
 /**
@@ -26,10 +27,10 @@ public:
    * @brief Обработка событий SFML для базового фокуса.
    */
   virtual void eventProcessing(sf::Event event) {
-    if (event.type == sf::Event::MouseMoved) {
-      focused = body.contains(event.mouseMove.x, event.mouseMove.y);
+    if (auto * m = event.getIf<sf::Event::MouseMoved>()) {
+      focused = body.contains(sf::Vector2f(m->position.x, m->position.y));
     }
-    if (event.type == sf::Event::MouseLeft) {
+    if (auto * l = event.getIf<sf::Event::MouseLeft>()) {
       focused = false;
     }
   }

@@ -89,7 +89,7 @@ public:
 
     for (auto &element : elements) {
       element->setBound(x, y + deltaY, width, height, indent);
-      deltaY += element->getBound().height + indent;
+      deltaY += element->getBound().size.y + indent;
     }
     if (deltaY > 0)
       deltaY -= indent;
@@ -97,12 +97,12 @@ public:
     if (selected) {
       for (auto &button : subButtons) {
         button->setBound(x, y + deltaY, width, height, indent);
-        deltaY += button->getBound().getSize().y + indent;
+        deltaY += button->getBound().size.y + indent;
       }
       deltaY -= indent;
     } else {
       subButtons[buttonNumber]->setBound(x, y + deltaY, width, height, indent);
-      deltaY += subButtons[buttonNumber]->getBound().getSize().y;
+      deltaY += subButtons[buttonNumber]->getBound().size.y;
     }
 
     AOutline::setBound(x, y, width, std::max(deltaY, height), indent);
