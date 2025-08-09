@@ -1,12 +1,8 @@
-name: Build and Release
-
-permissions:
-  contents: write
+name: CI
 
 on:
   push:
-    tags:
-      - 'v*'
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -16,130 +12,43 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            triplet: linux
-          - os: windows-latest
-            triplet: windows
+        os: [ubuntu-latest, windows-latest]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # ---------- deps ----------
+      - name: CMake + Ninja
+        uses: lukka/get-cmake@v3.30.3
+
       - name: Install deps (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake libsfml-dev nlohmann-json3-dev zip patchelf
+          sudo apt-get install -y \
+            ninja-build pkg-config \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxext-dev \
+            libgl1-mesa-dev libudev-dev \
+            libopenal-dev libflac-dev libvorbis-dev libogg-dev \
+            libdrm-dev libgbm-dev libwayland-dev wayland-protocols \
+            libfreetype6-dev
 
-      - name: Install vcpkg (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git $env:USERPROFILE\vcpkg
-          & $env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DBUNDLE_SFML=ON
+          -DBUNDLE_JSON=ON
 
-      - name: Install libs via vcpkg (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          $triplet = "x64-windows"
-          & $env:USERPROFILE\vcpkg\vcpkg.exe install sfml nlohmann-json --triplet $triplet
-          echo "VCPKG_TRIPLET=$triplet" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "VCPKG_ROOT=$env:USERPROFILE\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "VCPKG_BIN=$env:USERPROFILE\vcpkg\installed\$triplet\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Build
+        run: cmake --build build --config Release -j 2
 
-      # ---------- configure & build ----------
-      - name: Configure (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Install (stage)
+        run: cmake --install build --config Release --prefix "dist/${{ runner.os }}"
 
-      - name: Build (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: cmake --build build --config Release -- -j$(nproc)
-
-      - name: Configure (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          cmake -S . -B build `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            -DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET `
-            -DCMAKE_PREFIX_PATH="$env:VCPKG_ROOT/installed/$env:VCPKG_TRIPLET/share"
-
-
-      - name: Build (Windows)
-        if: matrix.os == 'windows-latest'
-        run: cmake --build build --config Release -- /m
-
-      # ---------- compute search dirs for fixup_bundle ----------
-      - name: Compute FIXUP_SEARCH_DIRS (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: echo "FIXUP_SEARCH_DIRS=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
-
-      - name: Compute FIXUP_SEARCH_DIRS (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: echo "FIXUP_SEARCH_DIRS=$env:VCPKG_BIN" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      # ---------- install (stage) ----------
-      - name: Install (stage) (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          cmake --install build --prefix "$PWD/dist/linux"
-          ls -la dist/linux
-
-      - name: Install (stage) (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          cmake --install build --prefix "$PWD\dist\windows"
-          Get-ChildItem -Recurse dist\windows
-
-      # ---------- package ----------
-      - name: Package (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          cd dist/linux
-          zip -r ../release-linux.zip HeartStringsFunnyBones assets config
-
-      - name: Package (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          cd dist\windows
-          Compress-Archive -Path HeartStringsFunnyBones.exe, assets, config -DestinationPath ..\release-windows.zip -Force
-
-      - name: Upload artifact (zip)
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.triplet }}
-          path: dist/release-${{ matrix.triplet }}.zip
-          if-no-files-found: error
-
-  release:
-    name: Create GitHub Release
-    needs: [build]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Show downloaded files
-        run: ls -R artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: |
-            artifacts/release-linux/release-linux.zip
-            artifacts/release-windows/release-windows.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: HeartStringsFunnyBones-${{ runner.os }}
+          path: dist/${{ runner.os }}
