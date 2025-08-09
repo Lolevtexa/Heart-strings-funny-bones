@@ -50,11 +50,19 @@ jobs:
       - name: Install (stage)
         run: cmake --install build --config Release --prefix "dist/${{ runner.os }}"
 
-      - name: Strip dev files from dist
+      # Удаляем лишнее: include SFML и cmake-скрипты
+      - name: Remove unnecessary SFML files (Linux)
+        if: runner.os == 'Linux'
         run: |
           rm -rf "dist/${{ runner.os }}/include" \
-                "dist/${{ runner.os }}/lib/cmake" \
-                "dist/${{ runner.os }}/share"
+                 "dist/${{ runner.os }}/lib/cmake"
+
+      - name: Remove unnecessary SFML files (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force "dist/Windows/include"
+          Remove-Item -Recurse -Force "dist/Windows/lib/cmake"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

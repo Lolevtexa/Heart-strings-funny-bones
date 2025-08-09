@@ -8,8 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ---------------- Режим сборки зависимостей ----------------
-# Windows: хотим DLL, чтобы .exe запускался с рядом лежащими .dll
-# Linux: по умолчанию статик (меньше возни), но можно включить SHARED флагом при конфигурации.
 if (WIN32)
   set(BUILD_SHARED_LIBS ON  CACHE BOOL "" FORCE)
 else()
@@ -19,7 +17,7 @@ endif()
 # ---------------- Тянем зависимости из исходников ----------------
 include(FetchContent)
 
-# nlohmann/json — header-only, просто подключаем
+# nlohmann/json — header-only
 FetchContent_Declare(
   nlohmann_json
   GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -28,11 +26,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
-# SFML 3.0.1 — отключаем всё лишнее
+# SFML 3.0.1
 set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_DOC      OFF CACHE BOOL "" FORCE)
-# Чтобы при install не уезжали include и прочее от самой SFML
 set(SFML_INSTALL        OFF CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
@@ -51,7 +48,7 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
 )
 
 if(PROJECT_SOURCES STREQUAL "")
-  message(FATAL_ERROR "Не найдены исходники в каталоге source/. Добавь .cpp файлы или поправь GLOB.")
+  message(FATAL_ERROR "Не найдены исходники в каталоге source/.")
 endif()
 
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
@@ -71,29 +68,21 @@ target_link_libraries(${PROJECT_NAME}
     nlohmann_json::nlohmann_json
 )
 
-# ---------------- Ресурсы рядом с бинарём (для дебага/локального запуска) ----------------
-add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
-  COMMAND ${CMAKE_COMMAND} -E remove_directory
-          $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-          ${CMAKE_CURRENT_SOURCE_DIR}/assets
-          $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
-  COMMENT "Copy assets -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
-)
+# ---------------- Копирование ресурсов для запуска ----------------
+foreach(dir assets config)
+  add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove_directory
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/${dir}
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}
+    COMMENT "Copy ${dir} -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
+  )
+endforeach()
 
-add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
-  COMMAND ${CMAKE_COMMAND} -E remove_directory
-          $<TARGET_FILE_DIR:${PROJECT_NAME}>/config
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-          ${CMAKE_CURRENT_SOURCE_DIR}/config
-          $<TARGET_FILE_DIR:${PROJECT_NAME}>/config
-  COMMENT "Copy config -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/config"
-)
-
-# ---------------- Автокопирование DLL (Windows, после сборки) ----------------
+# ---------------- Автокопирование DLL (Windows) ----------------
 if (WIN32)
   add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Copy runtime DLLs"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
             $<TARGET_FILE_DIR:${PROJECT_NAME}>
@@ -101,15 +90,14 @@ if (WIN32)
   )
 endif()
 
-# ---------------- Настройка RPATH (если решишь делать SHARED на Linux) ----------------
+# ---------------- RPATH (если SHARED на Linux) ----------------
 if (UNIX AND NOT APPLE)
-  # включи при -DBUILD_SHARED_LIBS=ON на Linux, чтобы .so искались в ./lib
   set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
   set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/lib")
 endif()
 
-# ---------------- Установка (install) ----------------
+# ---------------- Установка ----------------
 include(GNUInstallDirs)
 
 install(TARGETS ${PROJECT_NAME}
@@ -118,16 +106,13 @@ install(TARGETS ${PROJECT_NAME}
   LIBRARY DESTINATION lib
 )
 
-install(DIRECTORY assets config
-  DESTINATION .
-)
+install(DIRECTORY assets config DESTINATION .)
 
-# Положить все нужные DLL рядом с exe при install (Windows)
 if (WIN32)
   install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> DESTINATION .)
 endif()
 
-# ---------------- Подсказки по конфигурации ----------------
+# ---------------- Вывод сводки ----------------
 message(STATUS "================= BUILD SUMMARY =================")
 message(STATUS "CMAKE_BUILD_TYPE      : ${CMAKE_BUILD_TYPE}")
 message(STATUS "BUILD_SHARED_LIBS     : ${BUILD_SHARED_LIBS}")
