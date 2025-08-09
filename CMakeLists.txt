@@ -122,18 +122,9 @@ install(DIRECTORY assets config
   DESTINATION .
 )
 
-# Копировать DLL рядом с exe при install (Windows)
+# Положить все нужные DLL рядом с exe при install (Windows)
 if (WIN32)
-  install(CODE [[
-    # найдём все зависимости исполняемого файла
-    file(GET_RUNTIME_DEPENDENCIES
-         RESOLVED_DEPENDENCIES deps
-         EXECUTABLES "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/HeartStringsFunnyBones.exe")
-    foreach(dll IN LISTS deps)
-      get_filename_component(name "${dll}" NAME)
-      file(COPY "${dll}" DESTINATION "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}")
-    endforeach()
-  ]])
+  install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> DESTINATION .)
 endif()
 
 # ---------------- Подсказки по конфигурации ----------------

@@ -50,6 +50,12 @@ jobs:
       - name: Install (stage)
         run: cmake --install build --config Release --prefix "dist/${{ runner.os }}"
 
+      - name: Strip dev files from dist
+        run: |
+          rm -rf "dist/${{ runner.os }}/include" \
+                "dist/${{ runner.os }}/lib/cmake" \
+                "dist/${{ runner.os }}/share"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
