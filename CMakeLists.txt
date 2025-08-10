@@ -103,10 +103,10 @@ endif()
 foreach(dir assets config)
   add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E remove_directory
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/${dir}
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir>
+            "${CMAKE_CURRENT_SOURCE_DIR}/${dir}"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
     COMMENT "Copy ${dir} -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
   )
 endforeach()
