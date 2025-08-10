@@ -34,7 +34,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up CMake + Ninja
-        uses: lukka/get-cmake@v4.1.0
+        uses: lukka/get-cmake@v3.28.3
 
       # ---- Linux: доставляем зависимости для SFML (X11 и др.)
       - name: Install SFML deps (Ubuntu)
