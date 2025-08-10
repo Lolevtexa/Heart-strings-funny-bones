@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.21) # TARGET_RUNTIME_DLLS требует 3.21+
 
 project(HeartStringsFunnyBones VERSION 0.1 LANGUAGES CXX)
 
@@ -7,20 +7,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ---------------- Хотим статические либы (в т.ч. SFML) ----------------
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-
-# ---------------- MSVC: статический рантайм (/MT, /MTd) ----------------
-if (MSVC)
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+# ---------------- Режим сборки зависимостей ----------------
+if (WIN32)
+  set(BUILD_SHARED_LIBS ON  CACHE BOOL "" FORCE)
+else()
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 endif()
 
-# ---------------- MinGW (локальные сборки): статлинк рантаймов ----------------
-if (MINGW)
-  add_link_options(-static-libstdc++ -static-libgcc)
-endif()
-
-# ---------------- Зависимости через FetchContent ----------------
+# ---------------- Тянем зависимости из исходников ----------------
 include(FetchContent)
 
 # nlohmann/json — header-only
@@ -32,11 +26,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
-# SFML 3.0.1 — собираем статически (BUILD_SHARED_LIBS=OFF уже проставлен)
+# SFML 3.0.1
 set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_DOC      OFF CACHE BOOL "" FORCE)
 set(SFML_INSTALL        OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
   SFML
   GIT_REPOSITORY https://github.com/SFML/SFML.git
@@ -45,15 +40,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SFML)
 
-# Для совместимости со статической SFML (в 3.x чаще не обязателен, но ок)
-add_compile_definitions(SFML_STATIC)
-
 # ---------------- Исходники проекта ----------------
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cxx
   ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cc
 )
+
 if(PROJECT_SOURCES STREQUAL "")
   message(FATAL_ERROR "Не найдены исходники в каталоге source/.")
 endif()
@@ -65,90 +58,58 @@ target_include_directories(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/source
 )
 
-# --- MSVC: форс-инклюд совместимого заголовка для std::codecvt (без кавычек!)
-if (MSVC)
-  target_compile_definitions(${PROJECT_NAME} PRIVATE _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
-  target_compile_options(${PROJECT_NAME} PRIVATE /FIcompat_codecvt.hpp)
-  # чтобы IDE видела файл как часть проекта (не обязательно для сборки)
-  target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/source/compat_codecvt.hpp)
-endif()
-
 # ---------------- Линковка ----------------
-if (WIN32)
-  target_link_libraries(${PROJECT_NAME}
-    PRIVATE
-      SFML::Graphics
-      SFML::Audio
-      SFML::Window
-      SFML::System
-      nlohmann_json::nlohmann_json
-      # Системные либы
-      winmm
-      gdi32
-      ws2_32
-      opengl32
-  )
-else()
-  target_link_libraries(${PROJECT_NAME}
-    PRIVATE
-      SFML::Graphics
-      SFML::Audio
-      SFML::Window
-      SFML::System
-      nlohmann_json::nlohmann_json
-  )
-endif()
+target_link_libraries(${PROJECT_NAME}
+  PRIVATE
+    SFML::Graphics
+    SFML::Audio
+    SFML::Window
+    SFML::System
+    nlohmann_json::nlohmann_json
+)
 
-# ---------------- Предупреждения ----------------
-if (MSVC)
-  target_compile_options(${PROJECT_NAME} PRIVATE /permissive- /Zc:preprocessor)
-else()
-  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
-endif()
-
-# ---------------- Копирование ресурсов рядом с бинарём ----------------
+# ---------------- Копирование ресурсов для запуска ----------------
 foreach(dir assets config)
   add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E remove_directory
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/${dir}"
-            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
+            ${CMAKE_CURRENT_SOURCE_DIR}/${dir}
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}
     COMMENT "Copy ${dir} -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
   )
 endforeach()
 
-# ---------------- Опционально: точечно скопировать openal32.dll, если вдруг она как DLL ----------------
+# ---------------- Автокопирование DLL (Windows) ----------------
 if (WIN32)
-  find_file(OPENAL_DLL NAMES openal32.dll
-    PATHS
-      "${CMAKE_BINARY_DIR}"
-      "$ENV{SystemRoot}/System32" "$ENV{SystemRoot}/SysWOW64"
-      "${SFML_SOURCE_DIR}/extlibs/bin/x86" "${SFML_SOURCE_DIR}/extlibs/bin/x64"
-    NO_DEFAULT_PATH
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    COMMAND_EXPAND_LISTS
   )
-  if (OPENAL_DLL)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-              "${OPENAL_DLL}"
-              "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
-  endif()
 endif()
 
-# ---------------- Установка: только то, что нужно для запуска ----------------
-include(GNUInstallDirs)
-
-install(TARGETS ${PROJECT_NAME}
-  RUNTIME DESTINATION .
-)
-
-install(DIRECTORY assets config DESTINATION .)
-
-# RPATH — на случай Unix c SHARED (здесь всё статикой, но не мешает)
+# ---------------- RPATH (если SHARED на Linux) ----------------
 if (UNIX AND NOT APPLE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
   set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/lib")
+endif()
+
+# ---------------- Установка ----------------
+include(GNUInstallDirs)
+
+install(TARGETS ${PROJECT_NAME}
+  RUNTIME DESTINATION .
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+)
+
+install(DIRECTORY assets config DESTINATION .)
+
+if (WIN32)
+  install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> DESTINATION .)
 endif()
 
 # ---------------- Вывод сводки ----------------
