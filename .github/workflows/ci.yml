@@ -2,11 +2,20 @@ name: CI
 
 on:
   push:
-    tags:    [ "v*" ]
+    tags:     [ 'v*' ]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_NAME: HeartStringsFunnyBones
+  BUILD_TYPE: Release
 
 jobs:
   build:
@@ -20,86 +29,84 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
 
-      - name: Install CMake + Ninja
-        uses: lukka/get-cmake@v3.30.3
-
-      - name: Install deps (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            ninja-build pkg-config \
-            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxext-dev libxi-dev \
-            libgl1-mesa-dev libudev-dev \
-            libopenal-dev libflac-dev libvorbis-dev libogg-dev \
-            libdrm-dev libgbm-dev libwayland-dev wayland-protocols \
-            libfreetype6-dev
+      - name: Set up CMake + Ninja
+        uses: lukka/get-cmake@v3.31.6
 
       - name: Configure
         run: >
           cmake -S . -B build
           -G Ninja
-          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
       - name: Build
-        run: cmake --build build --config Release -j 2
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
 
-      - name: Install (stage)
-        run: cmake --install build --config Release --prefix "dist/${{ runner.os }}"
-
-      # Удаляем лишнее: include SFML и cmake-скрипты
-      - name: Remove unnecessary SFML files (Linux)
-        if: runner.os == 'Linux'
+      - name: Install to staging
         run: |
-          rm -rf "dist/${{ runner.os }}/include" \
-                 "dist/${{ runner.os }}/lib/cmake"
+          cmake --install build --config ${{ env.BUILD_TYPE }} --prefix "$PWD/staging"
+        shell: bash
 
-      - name: Remove unnecessary SFML files (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+      - name: Pack artifact
         run: |
-          Remove-Item -Recurse -Force "dist/Windows/include"
-          Remove-Item -Recurse -Force "dist/Windows/lib/cmake"
+          mkdir -p release
+          cd staging
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a "../release/${{ env.APP_NAME }}-windows-latest.zip" *
+          else
+            zip -r "../release/${{ env.APP_NAME }}-ubuntu-latest.zip" *
+          fi
+        shell: bash
 
-      - name: Upload artifact
+      - name: Upload artifact (Windows)
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: HeartStringsFunnyBones-${{ runner.os }}
-          path: dist/${{ runner.os }}/
+          name: ${{ env.APP_NAME }}-windows-latest
+          path: release/${{ env.APP_NAME }}-windows-latest.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload artifact (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-ubuntu-latest
+          path: release/${{ env.APP_NAME }}-ubuntu-latest.zip
+          if-no-files-found: error
+          retention-days: 7
 
   release:
     name: Create Release
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build]
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
           name: HeartStringsFunnyBones-windows-latest
-          path: dist/Windows
+          path: dl
 
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
           name: HeartStringsFunnyBones-ubuntu-latest
-          path: dist/Linux
+          path: dl
 
-      - name: Pack Windows
-        run: |
-          cd dist
-          zip -r HeartStringsFunnyBones-Windows.zip Windows
-      - name: Pack Linux
-        run: |
-          cd dist
-          tar -czf HeartStringsFunnyBones-Linux.tar.gz Linux
+      - name: Show downloaded files
+        run: ls -la dl
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/HeartStringsFunnyBones-Windows.zip
-            dist/HeartStringsFunnyBones-Linux.tar.gz
           draft: false
           prerelease: false
+          files: |
+            dl/HeartStringsFunnyBones-windows-latest.zip
+            dl/HeartStringsFunnyBones-ubuntu-latest.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
