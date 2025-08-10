@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21) # TARGET_RUNTIME_DLLS требует 3.21+
+cmake_minimum_required(VERSION 3.21)
 
 project(HeartStringsFunnyBones VERSION 0.1 LANGUAGES CXX)
 
