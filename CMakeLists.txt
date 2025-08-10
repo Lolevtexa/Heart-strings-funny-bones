@@ -12,7 +12,6 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
 # ---------------- MSVC: статический рантайм (/MT, /MTd) ----------------
 if (MSVC)
-  # CMake >= 3.15
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
@@ -66,11 +65,12 @@ target_include_directories(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/source
 )
 
-# --- MSVC: тихо подключим <codecvt> во все единицы компиляции, без правок кода
+# --- MSVC: форс-инклюд совместимого заголовка для std::codecvt (без кавычек!)
 if (MSVC)
   target_compile_definitions(${PROJECT_NAME} PRIVATE _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
-  # header лежит в source/, это есть в include dirs, поэтому можно /FI "compat_codecvt.hpp"
-  target_compile_options(${PROJECT_NAME} PRIVATE /FI"compat_codecvt.hpp")
+  target_compile_options(${PROJECT_NAME} PRIVATE /FIcompat_codecvt.hpp)
+  # чтобы IDE видела файл как часть проекта (не обязательно для сборки)
+  target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/source/compat_codecvt.hpp)
 endif()
 
 # ---------------- Линковка ----------------
