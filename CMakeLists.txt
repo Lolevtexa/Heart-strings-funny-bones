@@ -7,28 +7,21 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ---------------- Где будем собирать shared? ----------------
-# На Windows хотим статические либы (чтобы .dll не размножались),
-# на Unix — оставим shared выключенным (тоже статика), кроме системных.
-if (WIN32)
-  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)  # SFML и ко — статически
-else()
-  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-endif()
+# ---------------- Хотим статические либы (в т.ч. SFML) ----------------
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
 # ---------------- MSVC: статический рантайм (/MT, /MTd) ----------------
 if (MSVC)
-  # Требует CMake >= 3.15
+  # CMake >= 3.15
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-# ---------------- MinGW: если вдруг соберёшь локально MinGW ----------------
+# ---------------- MinGW (локальные сборки): статлинк рантаймов ----------------
 if (MINGW)
-  # Вшиваем libstdc++ и libgcc внутрь exe (чтобы не класть эти DLL)
   add_link_options(-static-libstdc++ -static-libgcc)
 endif()
 
-# ---------------- Тянем зависимости из исходников ----------------
+# ---------------- Зависимости через FetchContent ----------------
 include(FetchContent)
 
 # nlohmann/json — header-only
@@ -40,13 +33,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
-# SFML 3.0.1 — статическая сборка
-# ВАЖНО: BUILD_SHARED_LIBS уже выставлен в OFF выше ДО MakeAvailable(SFML).
+# SFML 3.0.1 — собираем статически (BUILD_SHARED_LIBS=OFF уже проставлен)
 set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_DOC      OFF CACHE BOOL "" FORCE)
 set(SFML_INSTALL        OFF CACHE BOOL "" FORCE)
-
 FetchContent_Declare(
   SFML
   GIT_REPOSITORY https://github.com/SFML/SFML.git
@@ -55,8 +46,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SFML)
 
-# Для статического SFML 2.x требовался SFML_STATIC; для 3.x чаще не нужен,
-# но безвредно оставить дефайн, вдруг где-то условная компиляция опирается.
+# Для совместимости со статической SFML (в 3.x чаще не обязателен, но ок)
 add_compile_definitions(SFML_STATIC)
 
 # ---------------- Исходники проекта ----------------
@@ -65,7 +55,6 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cxx
   ${CMAKE_CURRENT_SOURCE_DIR}/source/*.cc
 )
-
 if(PROJECT_SOURCES STREQUAL "")
   message(FATAL_ERROR "Не найдены исходники в каталоге source/.")
 endif()
@@ -78,7 +67,6 @@ target_include_directories(${PROJECT_NAME}
 )
 
 # ---------------- Линковка ----------------
-# При статической SFML на Windows могут понадобиться системные либы явно.
 if (WIN32)
   target_link_libraries(${PROJECT_NAME}
     PRIVATE
@@ -87,7 +75,7 @@ if (WIN32)
       SFML::Window
       SFML::System
       nlohmann_json::nlohmann_json
-      # Системные:
+      # Системные либы
       winmm
       gdi32
       ws2_32
@@ -104,47 +92,33 @@ else()
   )
 endif()
 
-# ---------------- Режимы оптимизации (необязательно, но полезно) ----------------
+# ---------------- Вменяемые предупреждения ----------------
 if (MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE /permissive- /Zc:preprocessor)
 else()
   target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# ---------------- Копирование ресурсов для запуска ----------------
+# ---------------- Копирование ресурсов рядом с бинарём ----------------
 foreach(dir assets config)
   add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E remove_directory
             $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/${dir}
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir>
     COMMENT "Copy ${dir} -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
   )
 endforeach()
 
-# ---------------- Автокопирование runtime DLL (если вдруг остались) ----------------
-# На MSVC со статическим рантаймом обычно уже нечего копировать, кроме, возможно, openal32.dll.
+# ---------------- Без общего copy_runtime_dlls (он и не нужен при статике) ----
+# Опционально: точечно скопировать openal32.dll, если вдруг она всё же DLL
 if (WIN32)
-  # Скопировать зависимые DLL целей (обычно пусто при статической SFML+MSVC runtime)
-  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>
-    COMMAND_EXPAND_LISTS
-  )
-
-  # На случай, если SFML подтянул OpenAL как DLL (имя обычно openal32.dll).
-  # Если файла нет — команда пропускается.
-  find_file(OPENAL_DLL
-    NAMES openal32.dll
+  find_file(OPENAL_DLL NAMES openal32.dll
     PATHS
       "${CMAKE_BINARY_DIR}"
-      "$ENV{SystemRoot}/System32"
-      "$ENV{SystemRoot}/SysWOW64"
-      # Папки сборки зависимостей (если openal поставляется вместе с SFML)
-      "${SFML_SOURCE_DIR}/extlibs/bin/x86"
-      "${SFML_SOURCE_DIR}/extlibs/bin/x64"
+      "$ENV{SystemRoot}/System32" "$ENV{SystemRoot}/SysWOW64"
+      "${SFML_SOURCE_DIR}/extlibs/bin/x86" "${SFML_SOURCE_DIR}/extlibs/bin/x64"
     NO_DEFAULT_PATH
   )
   if (OPENAL_DLL)
@@ -155,7 +129,7 @@ if (WIN32)
   endif()
 endif()
 
-# ---------------- Установка (только то, что нужно для запуска) ----------------
+# ---------------- Установка: только то, что нужно для запуска ----------------
 include(GNUInstallDirs)
 
 install(TARGETS ${PROJECT_NAME}
@@ -164,12 +138,7 @@ install(TARGETS ${PROJECT_NAME}
 
 install(DIRECTORY assets config DESTINATION .)
 
-# Если после статлинка всё-таки есть runtime DLL — положим рядом (обычно пусто)
-if (WIN32)
-  install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> DESTINATION .)
-endif()
-
-# ---------------- RPATH (если SHARED на Linux) ----------------
+# RPATH — на случай Unix c SHARED (здесь всё статикой, но не мешает)
 if (UNIX AND NOT APPLE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)

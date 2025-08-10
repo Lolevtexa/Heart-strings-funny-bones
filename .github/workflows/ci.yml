@@ -3,12 +3,12 @@ name: CI
 on:
   push:
     branches: [ main ]
-    tags:     [ 'v*' ]
+    tags:     [ 'v*' ]     # релиз по тегу вида v1.2.3
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write          # нужно для публикации релиза
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,9 +34,16 @@ jobs:
           fetch-depth: 0
 
       - name: Set up CMake + Ninja
-        uses: lukka/get-cmake@v3.28.3
+        uses: lukka/get-cmake@v3.31.6
 
-      # ---- Linux: доставляем зависимости для SFML (X11 и др.)
+      # ВКЛЮЧАЕМ MSVC ОКРУЖЕНИЕ, чтобы Ninja использовал cl.exe (а не MinGW)
+      - name: Setup MSVC dev environment (x64)
+        if: matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # Зависимости SFML для Ubuntu (X11/OpenGL/Audio/FreeType/OGG/Vorbis)
       - name: Install SFML deps (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -46,23 +53,19 @@ jobs:
             libgl1-mesa-dev libfreetype6-dev \
             libopenal-dev libflac-dev libvorbis-dev libogg-dev
 
-      # ---- Configure
       - name: Configure
         run: >
           cmake -S . -B build
           -G Ninja
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
-      # ---- Build
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
 
-      # ---- Install to staging (только exe + ресурсы)
       - name: Install to staging
         run: cmake --install build --config ${{ env.BUILD_TYPE }} --prefix "$PWD/staging"
         shell: bash
 
-      # ---- Pack artifact
       - name: Pack artifact
         run: |
           mkdir -p release
@@ -74,7 +77,6 @@ jobs:
           fi
         shell: bash
 
-      # ---- Upload artifacts (фиксированные имена)
       - name: Upload artifact (Windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
