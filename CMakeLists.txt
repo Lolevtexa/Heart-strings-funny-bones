@@ -66,6 +66,13 @@ target_include_directories(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/source
 )
 
+# --- MSVC: тихо подключим <codecvt> во все единицы компиляции, без правок кода
+if (MSVC)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
+  # header лежит в source/, это есть в include dirs, поэтому можно /FI "compat_codecvt.hpp"
+  target_compile_options(${PROJECT_NAME} PRIVATE /FI"compat_codecvt.hpp")
+endif()
+
 # ---------------- Линковка ----------------
 if (WIN32)
   target_link_libraries(${PROJECT_NAME}
@@ -92,7 +99,7 @@ else()
   )
 endif()
 
-# ---------------- Вменяемые предупреждения ----------------
+# ---------------- Предупреждения ----------------
 if (MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE /permissive- /Zc:preprocessor)
 else()
@@ -111,8 +118,7 @@ foreach(dir assets config)
   )
 endforeach()
 
-# ---------------- Без общего copy_runtime_dlls (он и не нужен при статике) ----
-# Опционально: точечно скопировать openal32.dll, если вдруг она всё же DLL
+# ---------------- Опционально: точечно скопировать openal32.dll, если вдруг она как DLL ----------------
 if (WIN32)
   find_file(OPENAL_DLL NAMES openal32.dll
     PATHS

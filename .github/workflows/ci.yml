@@ -36,14 +36,12 @@ jobs:
       - name: Set up CMake + Ninja
         uses: lukka/get-cmake@v3.31.6
 
-      # ВКЛЮЧАЕМ MSVC ОКРУЖЕНИЕ, чтобы Ninja использовал cl.exe (а не MinGW)
       - name: Setup MSVC dev environment (x64)
         if: matrix.os == 'windows-latest'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      # Зависимости SFML для Ubuntu (X11/OpenGL/Audio/FreeType/OGG/Vorbis)
       - name: Install SFML deps (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
