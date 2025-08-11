@@ -69,6 +69,17 @@ target_link_libraries(${PROJECT_NAME}
     nlohmann_json::nlohmann_json
 )
 
+# --- Статический рантайм MinGW (только для сборок MinGW/Win32) ---
+if(MINGW)
+  # 1) Убираем зависимости на libstdc++-6.dll и libgcc_s_seh-1.dll
+  target_link_options(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++)
+
+  # 2) Попытаться статически прилинковать winpthread
+  target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Bstatic)
+  target_link_libraries(${PROJECT_NAME} PRIVATE -lwinpthread)
+  target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Bdynamic)
+endif()
+
 # ---------------- Деплой ресурсов (ОТДЕЛЬНАЯ ЦЕЛЬ) ----------------
 add_custom_target(deploy_assets ALL
   COMMAND ${CMAKE_COMMAND} -E rm -rf
