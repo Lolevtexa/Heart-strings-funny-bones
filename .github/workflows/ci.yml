@@ -50,7 +50,6 @@ jobs:
       - name: Install (stage)
         run: cmake --install build --config Release --prefix "dist/${{ runner.os }}"
 
-      # Удаляем лишнее: include SFML и cmake-скрипты
       - name: Remove unnecessary SFML files (Linux)
         if: runner.os == 'Linux'
         run: |
