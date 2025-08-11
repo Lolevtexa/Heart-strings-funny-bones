@@ -73,10 +73,10 @@ target_link_libraries(${PROJECT_NAME}
 if(MINGW)
   # Попробовать полностью статически, если это допустимо для твоего проекта:
   # (Если начнутся конфликты с другими стат. библиотеками — вернись к более мягкому варианту)
-  target_link_options(${PROJECT_NAME} PRIVATE
-    -static -static-libgcc -static-libstdc++
-    -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic
-  )
+  target_link_options(${PROJECT_NAME} PRIVATE -static -static-libgcc -static-libstdc++)
+  target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Bstatic)
+  target_link_options(${PROJECT_NAME} PRIVATE -lwinpthread)
+  target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Bdynamic)
 endif()
 
 # ---------------- Деплой ресурсов (ОТДЕЛЬНАЯ ЦЕЛЬ) ----------------
