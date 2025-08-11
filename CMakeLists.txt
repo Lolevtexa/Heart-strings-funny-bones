@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21) # для $<TARGET_RUNTIME_DLLS:>
+cmake_minimum_required(VERSION 3.21)
 
 project(HeartStringsFunnyBones VERSION 0.1 LANGUAGES CXX)
 
@@ -9,10 +9,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ---------------- Статическая линковка библиотек ----------------
 # Цель: максимально убрать внешние DLL, встроив код библиотек в .exe
-# Включаем статическую линковку как на Windows, так и на Linux.
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
-# ---------------- Тянем зависимости из исходников ----------------
+# ---------------- Зависимости ----------------
 include(FetchContent)
 
 # nlohmann/json — header-only
@@ -24,12 +23,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
-# SFML 3.0.1
+# SFML 3.0.1 (по умолчанию соберётся статически при BUILD_SHARED_LIBS=OFF)
 set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_DOC      OFF CACHE BOOL "" FORCE)
 set(SFML_INSTALL        OFF CACHE BOOL "" FORCE)
-# Важно: при BUILD_SHARED_LIBS=OFF SFML собирается статически.
 
 FetchContent_Declare(
   SFML
@@ -57,7 +55,7 @@ target_include_directories(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/source
 )
 
-# Если линкуемся со статической SFML на Windows, нужен дефайн SFML_STATIC
+# Для статической SFML на Windows требуется дефайн SFML_STATIC
 target_compile_definitions(${PROJECT_NAME}
   PRIVATE
     $<$<BOOL:${WIN32}>:SFML_STATIC>
@@ -73,31 +71,37 @@ target_link_libraries(${PROJECT_NAME}
     nlohmann_json::nlohmann_json
 )
 
-# ---------------- Копирование ресурсов для запуска ----------------
-foreach(dir assets config)
-  add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove_directory
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_CURRENT_SOURCE_DIR}/${dir}
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}
-    COMMENT "Copy ${dir} -> $<TARGET_FILE_DIR:${PROJECT_NAME}>/${dir}"
-  )
-endforeach()
+# ---------------- Деплой ресурсов (ОТДЕЛЬНАЯ ЦЕЛЬ) ----------------
+# Избегаем PRE/POST_BUILD, чтобы не раздувать командную строку линковки (8191 символ).
+add_custom_target(deploy_assets ALL
+  COMMAND ${CMAKE_COMMAND} -E rm -rf
+          $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+          ${CMAKE_CURRENT_SOURCE_DIR}/assets
+          $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
+  COMMAND ${CMAKE_COMMAND} -E rm -rf
+          $<TARGET_FILE_DIR:${PROJECT_NAME}>/config
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+          ${CMAKE_CURRENT_SOURCE_DIR}/config
+          $<TARGET_FILE_DIR:${PROJECT_NAME}>/config
+  COMMENT "Deploy assets/ and config/ to runtime dir"
+)
+add_dependencies(deploy_assets ${PROJECT_NAME})
 
-# ---------------- Автокопирование DLL (Windows, на всякий случай) ----------------
-# При статической SFML DLL почти не будет, но если останутся внешние (например OpenAL/sndfile),
-# и CMake их сможет распознать как runtime-зависимости, они будут скопированы.
+# ---------------- Деплой возможных runtime-DLL (ОТДЕЛЬНАЯ ЦЕЛЬ) ----------------
+# При статической SFML список обычно пуст, но оставим «на всякий» (OpenAL/sndfile и т.п.).
 if (WIN32)
-  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+  add_custom_target(deploy_runtime_dlls ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "Copy runtime DLLs (if any)"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
             $<TARGET_FILE_DIR:${PROJECT_NAME}>
     COMMAND_EXPAND_LISTS
   )
+  add_dependencies(deploy_runtime_dlls ${PROJECT_NAME})
 endif()
 
-# ---------------- RPATH (для Linux, если когда-то соберём SHARED) ----------------
+# ---------------- RPATH (Linux) ----------------
 if (UNIX AND NOT APPLE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
@@ -119,7 +123,7 @@ if (WIN32)
   install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> DESTINATION .)
 endif()
 
-# ---------------- Вывод сводки ----------------
+# ---------------- Сводка ----------------
 message(STATUS "================= BUILD SUMMARY =================")
 message(STATUS "CMAKE_BUILD_TYPE      : ${CMAKE_BUILD_TYPE}")
 message(STATUS "BUILD_SHARED_LIBS     : ${BUILD_SHARED_LIBS}")
