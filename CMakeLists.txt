@@ -126,6 +126,26 @@ if (WIN32)
   add_dependencies(deploy_runtime_dlls ${PROJECT_NAME})
 endif()
 
+# План Б: копирование MinGW runtime, если статическая линковка чего-то не убрала
+if(MINGW)
+  get_filename_component(MINGW_BIN "${CMAKE_CXX_COMPILER}" DIRECTORY)
+
+  set(MINGW_RUNTIME_DLLS
+    "${MINGW_BIN}/libstdc++-6.dll"
+    "${MINGW_BIN}/libgcc_s_seh-1.dll"
+    "${MINGW_BIN}/libwinpthread-1.dll"
+  )
+
+  add_custom_target(deploy_mingw_runtime ALL
+    COMMAND ${CMAKE_COMMAND}
+            -Dsrc="${MINGW_RUNTIME_DLLS}"
+            -Ddst="$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+            -P "${COPY_DLLS_SCRIPT}"
+    COMMENT "Copy MinGW runtime DLLs if present (fallback)"
+  )
+  add_dependencies(deploy_mingw_runtime ${PROJECT_NAME})
+endif()
+
 # ---------------- RPATH (Linux) ----------------
 if (UNIX AND NOT APPLE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
