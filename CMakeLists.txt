@@ -71,13 +71,12 @@ target_link_libraries(${PROJECT_NAME}
 
 # --- Статический рантайм MinGW (только для сборок MinGW/Win32) ---
 if(MINGW)
-  # 1) Убираем зависимости на libstdc++-6.dll и libgcc_s_seh-1.dll
-  target_link_options(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++)
-
-  # 2) Попытаться статически прилинковать winpthread
-  target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Bstatic)
-  target_link_libraries(${PROJECT_NAME} PRIVATE -lwinpthread)
-  target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Bdynamic)
+  # Попробовать полностью статически, если это допустимо для твоего проекта:
+  # (Если начнутся конфликты с другими стат. библиотеками — вернись к более мягкому варианту)
+  target_link_options(${PROJECT_NAME} PRIVATE
+    -static -static-libgcc -static-libstdc++
+    -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic
+  )
 endif()
 
 # ---------------- Деплой ресурсов (ОТДЕЛЬНАЯ ЦЕЛЬ) ----------------
@@ -130,20 +129,30 @@ endif()
 if(MINGW)
   get_filename_component(MINGW_BIN "${CMAKE_CXX_COMPILER}" DIRECTORY)
 
-  set(MINGW_RUNTIME_DLLS
-    "${MINGW_BIN}/libstdc++-6.dll"
-    "${MINGW_BIN}/libgcc_s_seh-1.dll"
-    "${MINGW_BIN}/libwinpthread-1.dll"
+  # Популярные места в MSYS2/MinGW и при кросс-сборке на Ubuntu/Debian
+  set(_candidate_bins
+    "${MINGW_BIN}"
+    "$ENV{MSYSTEM_PREFIX}/bin"                          # MSYS2
+    "/usr/x86_64-w64-mingw32/bin" "/usr/i686-w64-mingw32/bin"   # Linux cross
+    "/usr/lib/gcc/x86_64-w64-mingw32" "/usr/lib/gcc/i686-w64-mingw32"
   )
 
-  add_custom_target(deploy_mingw_runtime ALL
-    COMMAND ${CMAKE_COMMAND}
-            -Dsrc="${MINGW_RUNTIME_DLLS}"
-            -Ddst="$<TARGET_FILE_DIR:${PROJECT_NAME}>"
-            -P "${COPY_DLLS_SCRIPT}"
-    COMMENT "Copy MinGW runtime DLLs if present (fallback)"
-  )
-  add_dependencies(deploy_mingw_runtime ${PROJECT_NAME})
+  unset(WINPTHREAD_DLL CACHE)
+  find_file(WINPTHREAD_DLL
+    NAMES libwinpthread-1.dll
+    PATHS ${_candidate_bins}
+    NO_DEFAULT_PATH)
+
+  if(WINPTHREAD_DLL)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              "${WINPTHREAD_DLL}" "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+      COMMENT "Copy libwinpthread-1.dll"
+    )
+  else()
+    message(WARNING "libwinpthread-1.dll не найден ни в одном из известных путей.
+Будет надежда на статическую линковку; иначе EXE потребует DLL рядом.")
+  endif()
 endif()
 
 # ---------------- RPATH (Linux) ----------------
