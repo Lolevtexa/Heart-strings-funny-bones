@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21) # TARGET_RUNTIME_DLLS требует 3.21+
+cmake_minimum_required(VERSION 3.21) # для $<TARGET_RUNTIME_DLLS:>
 
 project(HeartStringsFunnyBones VERSION 0.1 LANGUAGES CXX)
 
@@ -7,12 +7,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# ---------------- Режим сборки зависимостей ----------------
-if (WIN32)
-  set(BUILD_SHARED_LIBS ON  CACHE BOOL "" FORCE)
-else()
-  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-endif()
+# ---------------- Статическая линковка библиотек ----------------
+# Цель: максимально убрать внешние DLL, встроив код библиотек в .exe
+# Включаем статическую линковку как на Windows, так и на Linux.
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
 # ---------------- Тянем зависимости из исходников ----------------
 include(FetchContent)
@@ -31,6 +29,7 @@ set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_DOC      OFF CACHE BOOL "" FORCE)
 set(SFML_INSTALL        OFF CACHE BOOL "" FORCE)
+# Важно: при BUILD_SHARED_LIBS=OFF SFML собирается статически.
 
 FetchContent_Declare(
   SFML
@@ -58,6 +57,12 @@ target_include_directories(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/source
 )
 
+# Если линкуемся со статической SFML на Windows, нужен дефайн SFML_STATIC
+target_compile_definitions(${PROJECT_NAME}
+  PRIVATE
+    $<$<BOOL:${WIN32}>:SFML_STATIC>
+)
+
 # ---------------- Линковка ----------------
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
@@ -80,7 +85,9 @@ foreach(dir assets config)
   )
 endforeach()
 
-# ---------------- Автокопирование DLL (Windows) ----------------
+# ---------------- Автокопирование DLL (Windows, на всякий случай) ----------------
+# При статической SFML DLL почти не будет, но если останутся внешние (например OpenAL/sndfile),
+# и CMake их сможет распознать как runtime-зависимости, они будут скопированы.
 if (WIN32)
   add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -90,7 +97,7 @@ if (WIN32)
   )
 endif()
 
-# ---------------- RPATH (если SHARED на Linux) ----------------
+# ---------------- RPATH (для Linux, если когда-то соберём SHARED) ----------------
 if (UNIX AND NOT APPLE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
