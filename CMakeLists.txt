@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ---------------- Статическая линковка библиотек ----------------
-# Цель: максимально убрать внешние DLL, встроив код библиотек в .exe
+# Максимально уменьшаем внешние DLL: SFML и др. статически.
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
 # ---------------- Зависимости ----------------
@@ -23,7 +23,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
-# SFML 3.0.1 (по умолчанию соберётся статически при BUILD_SHARED_LIBS=OFF)
+# SFML 3.0.1 (при BUILD_SHARED_LIBS=OFF соберётся статически)
 set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(SFML_BUILD_DOC      OFF CACHE BOOL "" FORCE)
@@ -51,14 +51,12 @@ endif()
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
 target_include_directories(${PROJECT_NAME}
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/source
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/source
 )
 
-# Для статической SFML на Windows требуется дефайн SFML_STATIC
+# Для статической SFML на Windows нужен дефайн SFML_STATIC
 target_compile_definitions(${PROJECT_NAME}
-  PRIVATE
-    $<$<BOOL:${WIN32}>:SFML_STATIC>
+  PRIVATE $<$<BOOL:${WIN32}>:SFML_STATIC>
 )
 
 # ---------------- Линковка ----------------
@@ -72,7 +70,6 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 # ---------------- Деплой ресурсов (ОТДЕЛЬНАЯ ЦЕЛЬ) ----------------
-# Избегаем PRE/POST_BUILD, чтобы не раздувать командную строку линковки (8191 символ).
 add_custom_target(deploy_assets ALL
   COMMAND ${CMAKE_COMMAND} -E rm -rf
           $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
@@ -88,15 +85,32 @@ add_custom_target(deploy_assets ALL
 )
 add_dependencies(deploy_assets ${PROJECT_NAME})
 
-# ---------------- Деплой возможных runtime-DLL (ОТДЕЛЬНАЯ ЦЕЛЬ) ----------------
-# При статической SFML список обычно пуст, но оставим «на всякий» (OpenAL/sndfile и т.п.).
+# ---------------- Безопасное копирование runtime-DLL (если вдруг есть) ----------------
+# Пишем мини-скрипт, который НЕ падает при пустом списке DLL.
+set(COPY_DLLS_SCRIPT "${CMAKE_BINARY_DIR}/copy_runtime_dlls.cmake")
+file(WRITE "${COPY_DLLS_SCRIPT}" "
+if(NOT DEFINED src OR src STREQUAL \"\")
+  message(STATUS \"No runtime DLLs to copy\")
+  return()
+endif()
+if(NOT DEFINED dst OR dst STREQUAL \"\")
+  message(FATAL_ERROR \"Destination directory 'dst' not set\")
+endif()
+file(MAKE_DIRECTORY \"\${dst}\")
+foreach(f IN LISTS src)
+  if(EXISTS \"\${f}\")
+    file(COPY \"\${f}\" DESTINATION \"\${dst}\")
+  endif()
+endforeach()
+")
+
 if (WIN32)
   add_custom_target(deploy_runtime_dlls ALL
-    COMMAND ${CMAKE_COMMAND} -E echo "Copy runtime DLLs (if any)"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
-            $<TARGET_FILE_DIR:${PROJECT_NAME}>
-    COMMAND_EXPAND_LISTS
+    COMMAND ${CMAKE_COMMAND}
+            -Dsrc="$<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>"
+            -Ddst="$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+            -P "${COPY_DLLS_SCRIPT}"
+    COMMENT "Copy runtime DLLs (if any)"
   )
   add_dependencies(deploy_runtime_dlls ${PROJECT_NAME})
 endif()
@@ -119,8 +133,18 @@ install(TARGETS ${PROJECT_NAME}
 
 install(DIRECTORY assets config DESTINATION .)
 
+# install для DLL — тоже безопасно (ничего не делает при пустом списке)
 if (WIN32)
-  install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> DESTINATION .)
+  install(CODE [[
+    set(dlls "$<TARGET_RUNTIME_DLLS:HeartStringsFunnyBones>")
+    if(dlls)
+      foreach(f IN LISTS dlls)
+        if(EXISTS "${f}")
+          file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}" TYPE FILE FILES "${f}")
+        endif()
+      endforeach()
+    endif()
+  ]])
 endif()
 
 # ---------------- Сводка ----------------
