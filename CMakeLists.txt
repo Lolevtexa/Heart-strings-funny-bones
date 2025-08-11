@@ -71,12 +71,7 @@ target_link_libraries(${PROJECT_NAME}
 
 # --- Статический рантайм MinGW (только для сборок MinGW/Win32) ---
 if(MINGW)
-  # Попробовать полностью статически, если это допустимо для твоего проекта:
-  # (Если начнутся конфликты с другими стат. библиотеками — вернись к более мягкому варианту)
-  target_link_options(${PROJECT_NAME} PRIVATE -static -static-libgcc -static-libstdc++)
-  target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Bstatic)
-  target_link_options(${PROJECT_NAME} PRIVATE -lwinpthread)
-  target_link_options(${PROJECT_NAME} PRIVATE -Wl,-Bdynamic)
+  target_link_options(${PROJECT_NAME} PRIVATE -static)
 endif()
 
 # ---------------- Деплой ресурсов (ОТДЕЛЬНАЯ ЦЕЛЬ) ----------------
