@@ -71,10 +71,10 @@ target_link_libraries(${PROJECT_NAME}
 
 # --- Статический рантайм MinGW + гарантированное копирование DLL (если нужно) ---
 if(MINGW)
-  # 1) Убираем зависимости на libstdc++-6.dll и libgcc_s_seh-1.dll
+  # 1) статический libgcc/libstdc++
   target_link_options(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++)
 
-  # 2) Попробуем найти статическую libwinpthread.a и прилинковать её явно
+  # 2) попробовать притянуть статическую libwinpthread.a
   execute_process(
     COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libwinpthread.a
     OUTPUT_VARIABLE WINPTHREAD_A
@@ -106,7 +106,7 @@ add_custom_target(deploy_assets ALL
 add_dependencies(deploy_assets ${PROJECT_NAME})
 
 # ---------------- Безопасное копирование runtime-DLL (если вдруг есть) ----------------
-# Пишем мини-скрипт, который НЕ падает при пустом списке DLL.
+# Мини-скрипт, который НЕ падает при пустом списке.
 set(COPY_DLLS_SCRIPT "${CMAKE_BINARY_DIR}/copy_runtime_dlls.cmake")
 file(WRITE "${COPY_DLLS_SCRIPT}" "
 if(NOT DEFINED src OR src STREQUAL \"\")
@@ -138,7 +138,6 @@ endif()
 
 # --- План Б для MinGW: найти реальные пути к MinGW-DLL и скопировать рядом с .exe
 if(MINGW)
-  # Функция: спросить у компилятора путь к DLL; если вернул только имя, ищем рядом с компилятором
   function(_detect_runtime_dll _soname _outvar)
     execute_process(
       COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=${_soname}
@@ -193,18 +192,9 @@ install(TARGETS ${PROJECT_NAME}
 
 install(DIRECTORY assets config DESTINATION .)
 
-# install для DLL — тоже безопасно (ничего не делает при пустом списке)
+# Простой и корректный способ установить runtime-DLL (если есть)
 if (WIN32)
-  install(CODE [[
-    set(dlls "$<TARGET_RUNTIME_DLLS:]]${PROJECT_NAME}[[>")
-    if(dlls)
-      foreach(f IN LISTS dlls)
-        if(EXISTS "${f}")
-          file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}" TYPE FILE FILES "${f}")
-        endif()
-      endforeach()
-    endif()
-  ]])
+  install(FILES $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> DESTINATION .)
 endif()
 
 # ---------------- Сводка ----------------
