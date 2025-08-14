@@ -31,7 +31,7 @@ public:
 
   /// События: сначала варианты (если раскрыто/или только активный), затем
   /// элементы шапки, затем логика клика.
-  void eventProcessing(sf::Event event) {
+  void eventProcessing(std::optional<sf::Event> &event) {
     if (selected) {
       for (auto &button : subButtons) {
         button->eventProcessing(event);

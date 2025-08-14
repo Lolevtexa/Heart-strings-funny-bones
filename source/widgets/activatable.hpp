@@ -26,11 +26,11 @@ public:
   /**
    * @brief Обработка событий SFML для базового фокуса.
    */
-  virtual void eventProcessing(sf::Event event) {
-    if (auto * m = event.getIf<sf::Event::MouseMoved>()) {
+  virtual void eventProcessing(std::optional<sf::Event> &event) {
+    if (auto * m = event->getIf<sf::Event::MouseMoved>()) {
       focused = body.contains(sf::Vector2f(m->position.x, m->position.y));
     }
-    if (auto * l = event.getIf<sf::Event::MouseLeft>()) {
+    if (auto * l = event->getIf<sf::Event::MouseLeft>()) {
       focused = false;
     }
   }

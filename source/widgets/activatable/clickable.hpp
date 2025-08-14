@@ -31,14 +31,14 @@ public:
    *  - MouseMoved вне body при зажатой ЛКМ поддерживает «клик с уходом»
    * (оставляем focused=true).
    */
-  virtual void eventProcessing(sf::Event event) {
-    if (auto * m = event.getIf<sf::Event::MouseButtonPressed>()) {
+  virtual void eventProcessing(std::optional<sf::Event> &event) {
+    if (auto * m = event->getIf<sf::Event::MouseButtonPressed>()) {
       if (m->button == sf::Mouse::Button::Left) {
         started = focused;
       }
     }
 
-    if (auto * r = event.getIf<sf::Event::MouseButtonReleased>()) {
+    if (auto * r = event->getIf<sf::Event::MouseButtonReleased>()) {
       if (r->button == sf::Mouse::Button::Left) {
         activate =
             body.contains(sf::Vector2f(r->position.x, r->position.y)) && started;
@@ -48,9 +48,7 @@ public:
 
     Activatable::eventProcessing(event);
 
-    if (auto * m = event.getIf<sf::Event::MouseMoved>()) {
-      // Если ушли за пределы с зажатой ЛКМ — считаем, что всё ещё
-      // взаимодействуем с элементом.
+    if (auto * m = event->getIf<sf::Event::MouseMoved>()) {
       if (!body.contains(sf::Vector2f(m->position.x, m->position.y)) && started) {
         focused = true;
       }

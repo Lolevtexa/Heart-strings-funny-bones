@@ -145,7 +145,7 @@ public:
    * @details Прокидывает события в кнопки активной страницы и в главное меню.
    * На ресайз — обновляет фон и перерасчёт ширины колонок.
    */
-  void eventProcessing(sf::Event event) {
+  void eventProcessing(std::optional<sf::Event> &event) {
     for (auto &button : menuButtons) {
       button->eventProcessing(event);
     }
@@ -154,7 +154,7 @@ public:
       button->eventProcessing(event);
     }
 
-    if (auto* r = event.getIf<sf::Event::Resized>()) {
+    if (auto* r = event->getIf<sf::Event::Resized>()) {
       background.setBound(0, 0, static_cast<float>(r->size.x),
                           static_cast<float>(r->size.y), 0);
       menuButtonWidth = r->size.x / 4;

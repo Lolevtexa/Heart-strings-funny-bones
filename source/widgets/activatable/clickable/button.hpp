@@ -39,7 +39,7 @@ public:
   }
 
   /// Прокинуть событие всем дочерним элементам + своя логика клика.
-  void eventProcessing(sf::Event event) {
+  void eventProcessing(std::optional<sf::Event> &event) {
     for (auto &element : elements) {
       element->eventProcessing(event);
     }

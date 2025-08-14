@@ -81,7 +81,7 @@ int main() {
         window.setView(sf::View(visible));
       }
 
-      mainScene.eventProcessing(*ev);
+      mainScene.eventProcessing(ev);
     }
 
     // Сохраняем настройки пользователя (например, громкость/язык)

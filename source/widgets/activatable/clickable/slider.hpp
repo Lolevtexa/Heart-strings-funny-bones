@@ -37,8 +37,8 @@ public:
 
   /// Фиксируем перемещение курсора — дорабатываем в update() (когда ЛКМ
   /// зажата).
-  void eventProcessing(sf::Event event) {
-    if (auto * m = event.getIf<sf::Event::MouseButtonPressed>()) {
+  void eventProcessing(std::optional<sf::Event> &event) {
+    if (auto * m = event->getIf<sf::Event::MouseButtonPressed>()) {
       mouseMoved = true;
       mouseOffset = m->position.x;
     }

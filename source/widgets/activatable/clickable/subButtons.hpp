@@ -50,7 +50,7 @@ public:
 
   /// Прокидываем событие либо всем вариантам (если раскрыто), либо только
   /// активному.
-  void eventProcessing(sf::Event event) {
+  void eventProcessing(std::optional<sf::Event> &event) {
     if (selected) {
       for (auto &button : subButtons) {
         button->eventProcessing(event);
