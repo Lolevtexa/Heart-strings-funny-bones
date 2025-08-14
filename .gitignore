@@ -1,4 +1,5 @@
 # Каталоги сборки и бинарники
+external/
 build/
 dist/
 bin/
